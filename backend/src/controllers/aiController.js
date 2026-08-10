@@ -1,0 +1,224 @@
+const Meeting = require('../models/Meeting');
+const config = require('../config/config');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
+const path = require('path');
+const fs = require('fs');
+
+// POST /api/meetings/:id/transcribe
+exports.transcribe = async (req, res, next) => {
+  try {
+    const meeting = await Meeting.findOne({
+      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
+    });
+
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    if (!meeting.recordingFilename) {
+      return res.status(400).json({ message: 'No recording found for this meeting' });
+    }
+
+    const recordingPath = path.join(__dirname, '../../storage/recordings', meeting.recordingFilename);
+    if (!fs.existsSync(recordingPath)) {
+      return res.status(404).json({ message: 'Recording file not found on disk' });
+    }
+
+    // Call Python AI service for transcription
+    // Use native fetch + File API (Node 18+)
+    const fileBuffer = fs.readFileSync(recordingPath);
+    const blob = new Blob([fileBuffer]);
+    const formData = new FormData();
+    formData.append('file', blob, meeting.recordingFilename);
+
+    const response = await fetch(`${config.aiServiceUrl}/transcribe`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return res.status(500).json({ message: `Transcription failed: ${errorText}` });
+    }
+
+    const transcriptData = await response.json();
+
+    meeting.transcript = {
+      text: transcriptData.text,
+      segments: transcriptData.segments || [],
+      processedAt: new Date(),
+    };
+    await meeting.save();
+
+    res.json({
+      message: 'Transcription completed',
+      transcript: meeting.transcript,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/meetings/:id/summarize
+exports.summarize = async (req, res, next) => {
+  try {
+    const meeting = await Meeting.findOne({
+      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
+    });
+
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    if (!meeting.transcript || !meeting.transcript.text) {
+      return res.status(400).json({ message: 'No transcript found. Please transcribe first.' });
+    }
+
+    if (!config.geminiApiKey) {
+      return res.status(500).json({ message: 'Gemini API key not configured' });
+    }
+
+    const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `You are a professional meeting assistant. Analyze the following meeting transcript and provide a structured summary.
+
+TRANSCRIPT:
+${meeting.transcript.text}
+
+Please respond ONLY with valid JSON in this exact format (no markdown, no code fences):
+{
+  "title": "A concise, descriptive title for this meeting",
+  "summary": "A comprehensive 2-3 paragraph summary of the meeting discussion",
+  "keyPoints": ["Key point 1", "Key point 2", "Key point 3"],
+  "decisions": ["Decision 1", "Decision 2"],
+  "actionItems": [
+    {"assignee": "Person name or 'Team'", "task": "Description of the action item"}
+  ],
+  "nextSteps": ["Next step 1", "Next step 2"]
+}
+
+If any section has no relevant content, use an empty array []. Always return valid JSON.`;
+
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+
+    // Parse the JSON response
+    let summaryData;
+    try {
+      // Try to extract JSON from the response (handle potential markdown fences)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      summaryData = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Gemini response:', responseText);
+      summaryData = {
+        title: meeting.title,
+        summary: responseText,
+        keyPoints: [],
+        decisions: [],
+        actionItems: [],
+        nextSteps: [],
+      };
+    }
+
+    meeting.summary = {
+      ...summaryData,
+      processedAt: new Date(),
+    };
+    await meeting.save();
+
+    res.json({
+      message: 'Summary generated successfully',
+      summary: meeting.summary,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/meetings/:id/transcript
+exports.getTranscript = async (req, res, next) => {
+  try {
+    const meeting = await Meeting.findOne({
+      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
+    });
+
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    res.json({ transcript: meeting.transcript || null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// GET /api/meetings/:id/summary
+exports.getSummary = async (req, res, next) => {
+  try {
+    const meeting = await Meeting.findOne({
+      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
+    });
+
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    res.json({ summary: meeting.summary || null });
+  } catch (error) {
+    next(error);
+  }
+};
+
+// POST /api/meetings/:id/ask
+exports.askMeeting = async (req, res, next) => {
+  try {
+    const { question } = req.body;
+    if (!question || !question.trim()) {
+      return res.status(400).json({ message: 'Question is required' });
+    }
+
+    const meeting = await Meeting.findOne({
+      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
+    });
+
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    const transcriptText = meeting.transcript?.text || 'No transcript available.';
+    const summaryText = meeting.summary?.summary || 'No summary available.';
+
+    if (!config.geminiApiKey) {
+      return res.status(500).json({ message: 'Gemini API key not configured' });
+    }
+
+    const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+
+    const prompt = `You are an AI Meeting Assistant answering questions about a recorded meeting.
+Answer the user's question accurately, concisely, and professionally based strictly on the provided context below.
+
+MEETING TITLE: ${meeting.title}
+MEETING SUMMARY: ${summaryText}
+
+FULL TRANSCRIPT:
+${transcriptText}
+
+USER QUESTION:
+${question}
+
+Give a clear, helpful response. If the information cannot be found in the meeting context, politely state so.`;
+
+    const result = await model.generateContent(prompt);
+    const answer = result.response.text();
+
+    res.json({
+      question,
+      answer,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
