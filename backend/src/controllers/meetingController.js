@@ -1,4 +1,4 @@
-const { v4: uuidv4 } = require('uuid');
+const crypto = require('crypto');
 const Meeting = require('../models/Meeting');
 const path = require('path');
 const fs = require('fs');
@@ -7,7 +7,7 @@ const fs = require('fs');
 exports.createMeeting = async (req, res, next) => {
   try {
     const { title } = req.body;
-    const roomId = uuidv4().slice(0, 8);
+    const roomId = crypto.randomUUID().slice(0, 8);
 
     const meeting = new Meeting({
       roomId,
