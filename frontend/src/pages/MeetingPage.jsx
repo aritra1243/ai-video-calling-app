@@ -447,7 +447,7 @@ const MeetingPage = () => {
                     width: '2rem',
                     height: '2rem',
                     borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #7c3aed, #3b82f6)',
+                    background: 'linear-gradient(135deg, #0284c7, #3b82f6)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',

@@ -554,7 +554,7 @@ const MeetingDetailsPage = () => {
                           maxWidth: '85%',
                           padding: '0.75rem 1rem',
                           borderRadius: 'var(--radius-md)',
-                          background: item.role === 'user' ? 'rgba(124, 58, 237, 0.25)' : 'var(--color-bg-elevated)',
+                          background: item.role === 'user' ? 'rgba(2, 132, 199, 0.25)' : 'var(--color-bg-elevated)',
                           border: '1px solid var(--color-border)',
                           fontSize: '0.8125rem',
                           lineHeight: 1.6,

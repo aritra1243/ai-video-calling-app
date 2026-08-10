@@ -124,7 +124,7 @@ const DashboardPage = () => {
         marginBottom: '2rem',
       }}>
         {[
-          { label: 'Total Meetings', value: totalMeetings, icon: HiVideoCamera, color: '#7c3aed' },
+          { label: 'Total Meetings', value: totalMeetings, icon: HiVideoCamera, color: '#0284c7' },
           { label: 'Active Now', value: activeMeetings, icon: HiUsers, color: '#10b981' },
           { label: 'AI Summaries', value: endedWithSummary, icon: HiSparkles, color: '#3b82f6' },
         ].map((stat, i) => (
@@ -138,7 +138,7 @@ const DashboardPage = () => {
               width: '3rem',
               height: '3rem',
               borderRadius: '0.75rem',
-              background: `rgba(${stat.color === '#7c3aed' ? '124,58,237' : stat.color === '#10b981' ? '16,185,129' : '59,130,246'}, 0.15)`,
+              background: `rgba(${stat.color === '#0284c7' ? '2,132,199' : stat.color === '#10b981' ? '16,185,129' : '59,130,246'}, 0.15)`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -242,7 +242,7 @@ const DashboardPage = () => {
                   width: '2.5rem',
                   height: '2.5rem',
                   borderRadius: '0.625rem',
-                  background: 'linear-gradient(135deg, rgba(124, 58, 237, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)',
+                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

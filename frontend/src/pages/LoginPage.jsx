@@ -44,7 +44,7 @@ const LoginPage = () => {
         width: '500px',
         height: '500px',
         borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(124, 58, 237, 0.15) 0%, transparent 70%)',
+        background: 'radial-gradient(circle, rgba(2, 132, 199, 0.15) 0%, transparent 70%)',
         filter: 'blur(60px)',
       }} />
       <div style={{
@@ -70,12 +70,12 @@ const LoginPage = () => {
             width: '4rem',
             height: '4rem',
             borderRadius: '1rem',
-            background: 'linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)',
+            background: 'linear-gradient(135deg, #0284c7 0%, #3b82f6 100%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 1rem',
-            boxShadow: '0 0 40px rgba(124, 58, 237, 0.4)',
+            boxShadow: '0 0 40px rgba(2, 132, 199, 0.4)',
           }}>
             <HiVideoCamera size={28} color="white" />
           </div>

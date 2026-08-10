@@ -1,39 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  /* Color Palette - Premium Dark Theme */
-  --color-bg-primary: #0a0a0f;
-  --color-bg-secondary: #12121a;
-  --color-bg-card: #1a1a2e;
-  --color-bg-elevated: #222240;
-  --color-bg-glass: rgba(26, 26, 46, 0.7);
+  /* Color Palette - Executive Professional Sky Blue Theme */
+  --color-bg-primary: #0b0f19;
+  --color-bg-secondary: #111827;
+  --color-bg-card: #1e293b;
+  --color-bg-elevated: #334155;
+  --color-bg-glass: rgba(30, 41, 59, 0.75);
   
-  --color-text-primary: #e8e8f0;
-  --color-text-secondary: #9a9ab0;
-  --color-text-muted: #6a6a80;
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
   
-  --color-accent: #7c3aed;
-  --color-accent-light: #a78bfa;
-  --color-accent-dark: #5b21b6;
+  --color-accent: #0284c7;
+  --color-accent-light: #38bdf8;
+  --color-accent-dark: #0369a1;
   
   --color-success: #10b981;
   --color-warning: #f59e0b;
   --color-danger: #ef4444;
-  --color-info: #3b82f6;
+  --color-info: #06b6d4;
   
-  --color-border: rgba(255, 255, 255, 0.06);
-  --color-border-light: rgba(255, 255, 255, 0.1);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-light: rgba(56, 189, 248, 0.15);
   
   /* Gradient Presets */
-  --gradient-primary: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
-  --gradient-card: linear-gradient(135deg, rgba(124, 58, 237, 0.1) 0%, rgba(59, 130, 246, 0.05) 100%);
-  --gradient-glow: radial-gradient(circle at 50% 50%, rgba(124, 58, 237, 0.15) 0%, transparent 70%);
+  --gradient-primary: linear-gradient(135deg, #0284c7 0%, #2563eb 100%);
+  --gradient-card: linear-gradient(135deg, rgba(2, 132, 199, 0.12) 0%, rgba(37, 99, 235, 0.06) 100%);
+  --gradient-glow: radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.15) 0%, transparent 70%);
   
   /* Shadows */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 30px rgba(124, 58, 237, 0.3);
+  --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.6);
+  --shadow-glow: 0 0 35px rgba(56, 189, 248, 0.25);
   
   /* Border Radius */
   --radius-sm: 0.5rem;
@@ -106,7 +106,7 @@ body {
 }
 
 .glass-card:hover {
-  border-color: rgba(124, 58, 237, 0.3);
+  border-color: rgba(2, 132, 199, 0.3);
   box-shadow: var(--shadow-glow);
   transform: translateY(-2px);
 }
@@ -131,11 +131,11 @@ body {
 .btn-primary {
   background: var(--gradient-primary);
   color: white;
-  box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+  box-shadow: 0 4px 15px rgba(2, 132, 199, 0.4);
 }
 
 .btn-primary:hover {
-  box-shadow: 0 6px 25px rgba(124, 58, 237, 0.6);
+  box-shadow: 0 6px 25px rgba(2, 132, 199, 0.6);
   transform: translateY(-1px);
 }
 
@@ -176,7 +176,7 @@ body {
 .btn-icon.active {
   background: var(--color-accent);
   border-color: var(--color-accent);
-  box-shadow: 0 0 15px rgba(124, 58, 237, 0.5);
+  box-shadow: 0 0 15px rgba(2, 132, 199, 0.5);
 }
 
 .btn-icon.danger {
@@ -206,7 +206,7 @@ body {
 
 .input:focus {
   border-color: var(--color-accent);
-  box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15);
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
 }
 
 .input::placeholder {
@@ -230,8 +230,8 @@ body {
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 15px rgba(124, 58, 237, 0.3); }
-  50% { box-shadow: 0 0 30px rgba(124, 58, 237, 0.6); }
+  0%, 100% { box-shadow: 0 0 15px rgba(2, 132, 199, 0.3); }
+  50% { box-shadow: 0 0 30px rgba(2, 132, 199, 0.6); }
 }
 
 @keyframes recording-pulse {
@@ -309,8 +309,8 @@ body {
 }
 
 .chat-message.own {
-  background: rgba(124, 58, 237, 0.2);
-  border: 1px solid rgba(124, 58, 237, 0.2);
+  background: rgba(2, 132, 199, 0.2);
+  border: 1px solid rgba(2, 132, 199, 0.2);
 }
 
 /* ─── Badge ───────────────────────────────────────────────── */
