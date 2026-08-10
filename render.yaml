@@ -1,0 +1,35 @@
+services:
+  # 1. Python AI Service (Whisper + FastAPI)
+  - type: web
+    name: ai-video-calling-app
+    env: docker
+    dockerfilePath: ./backend/ai-service/Dockerfile
+    dockerContext: ./backend/ai-service
+    envVars:
+      - key: WHISPER_MODEL
+        value: base
+      - key: WHISPER_DEVICE
+        value: cpu
+      - key: WHISPER_COMPUTE_TYPE
+        value: int8
+
+  # 2. Node.js Express Backend
+  - type: web
+    name: ai-meeting-backend
+    env: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: MONGO_URI
+        value: mongodb+srv://ad2001:root@cluster-1.y5ihkl4.mongodb.net/ai-meeting-app?retryWrites=true&w=majority
+      - key: JWT_SECRET
+        value: super_secret_corporate_jwt_key_2026
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AI_SERVICE_URL
+        value: https://ai-video-calling-app.onrender.com
+      - key: CLIENT_URL
+        value: https://ai-video-calling-app.vercel.app
