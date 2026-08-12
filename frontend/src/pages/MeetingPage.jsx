@@ -182,7 +182,7 @@ const MeetingPage = () => {
         }
       } catch (err) {
         console.error('Recording upload failed:', err);
-        toast.error('Failed to upload recording', { id: 'upload' });
+        toast.error(err.response?.data?.message || 'Failed to upload recording', { id: 'upload' });
       }
     }
   };

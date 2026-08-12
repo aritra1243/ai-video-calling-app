@@ -42,7 +42,6 @@ export const meetingService = {
     const formData = new FormData();
     formData.append('recording', blob, `meeting-${id}.webm`);
     const response = await api.post(`/meetings/${id}/recording`, formData, {
-      headers: { 'Content-Type': 'multipart/form-data' },
       timeout: 300000, // 5 min timeout for large files
     });
     return response.data;
