@@ -153,11 +153,20 @@ exports.deleteMeeting = async (req, res, next) => {
 // POST /api/meetings/:id/recording
 exports.uploadRecording = async (req, res, next) => {
   try {
+    console.log('[uploadRecording] Received upload request for meeting:', req.params.id);
+    console.log('[uploadRecording] req.file:', req.file ? {
+      filename: req.file.filename,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path,
+    } : 'NO FILE');
+
     if (!req.file) {
-      return res.status(400).json({ message: 'No recording file uploaded' });
+      return res.status(400).json({ message: 'No recording file uploaded. Check that the FormData field name is "recording".' });
     }
 
     const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
+    console.log('[uploadRecording] Meeting found:', meeting ? meeting._id : 'NOT FOUND');
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -169,14 +178,18 @@ exports.uploadRecording = async (req, res, next) => {
     meeting.endedAt = new Date();
     await meeting.save();
 
+    console.log('[uploadRecording] SUCCESS - Recording saved:', req.file.filename, 'size:', req.file.size);
+
     res.json({
       message: 'Recording uploaded successfully',
       meeting,
     });
   } catch (error) {
+    console.error('[uploadRecording] ERROR:', error);
     next(error);
   }
 };
+
 
 // GET /api/meetings/:id/recording
 exports.getRecording = async (req, res, next) => {

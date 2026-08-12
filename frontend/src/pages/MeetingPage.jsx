@@ -267,24 +267,34 @@ const MeetingPage = () => {
       toast.loading('Saving recording...', { id: 'upload' });
       const blob = await stopRecording();
       socket?.emit('recording-stopped', { roomId });
-      if (blob) {
+      console.log('[Recording] Blob received:', blob ? `${(blob.size / 1024).toFixed(1)}KB, type=${blob.type}` : 'NULL');
+      if (blob && blob.size > 0) {
         try {
           const targetId = meeting?._id || roomId;
+          console.log('[Recording] Uploading to meeting:', targetId, 'blob size:', blob.size);
           await meetingService.uploadRecording(targetId, blob);
           toast.success('Recording saved successfully!', { id: 'upload' });
         } catch (err) {
-          console.error('Recording upload error:', err?.response?.data || err);
+          console.error('Recording upload error:', err?.response?.status, err?.response?.data || err?.message);
           toast.error(err?.response?.data?.message || 'Failed to upload recording', { id: 'upload' });
         }
+      } else {
+        console.error('[Recording] Blob is empty or null — no data recorded');
+        toast.error('Recording failed — no audio/video data captured', { id: 'upload' });
       }
     } else {
       if (stream) {
+        const tracks = stream.getTracks();
+        console.log('[Recording] Starting recording with', tracks.length, 'tracks:', tracks.map(t => `${t.kind}:${t.readyState}`));
         startRecording(stream);
         socket?.emit('recording-started', { roomId });
         toast.success('Recording started');
+      } else {
+        toast.error('No media stream available to record');
       }
     }
   };
+
 
 
   const copyLink = () => {
