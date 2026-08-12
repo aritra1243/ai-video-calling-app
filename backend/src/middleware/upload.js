@@ -30,12 +30,22 @@ const upload = multer({
   },
   fileFilter: (req, file, cb) => {
     const mime = (file.mimetype || '').toLowerCase();
-    if (mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/octet-stream') {
+    const ext = path.extname(file.originalname || '').toLowerCase();
+    const allowedExtensions = ['.webm', '.mp4', '.mkv', '.avi', '.mov', '.wav', '.mp3', '.ogg'];
+
+    if (
+      mime.startsWith('video/') ||
+      mime.startsWith('audio/') ||
+      mime === 'application/octet-stream' ||
+      mime === '' ||
+      allowedExtensions.includes(ext)
+    ) {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only video/audio files are allowed.'));
     }
   },
+
 });
 
 module.exports = upload;
