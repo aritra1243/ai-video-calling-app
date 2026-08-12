@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const Meeting = require('../models/Meeting');
 const StandupEntry = require('../models/StandupEntry');
 const config = require('../config/config');
@@ -5,12 +6,18 @@ const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
 const fs = require('fs');
 
+// Helper to query meeting by ObjectId _id or string roomId safely without Mongoose CastError
+const getMeetingQuery = (id) => {
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return { $or: [{ _id: id }, { roomId: id }] };
+  }
+  return { roomId: id };
+};
+
 // POST /api/meetings/:id/transcribe
 exports.transcribe = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -63,9 +70,7 @@ exports.transcribe = async (req, res, next) => {
 // POST /api/meetings/:id/summarize
 exports.summarize = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -140,9 +145,7 @@ If any section has no relevant content, use an empty array []. Always return val
 // GET /api/meetings/:id/transcript
 exports.getTranscript = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -157,9 +160,7 @@ exports.getTranscript = async (req, res, next) => {
 // GET /api/meetings/:id/summary
 exports.getSummary = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -179,9 +180,8 @@ exports.askMeeting = async (req, res, next) => {
       return res.status(400).json({ message: 'Question is required' });
     }
 
-    const meeting = await Meeting.findOne({
-      $or: [{ _id: req.params.id }, { roomId: req.params.id }],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
+
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });

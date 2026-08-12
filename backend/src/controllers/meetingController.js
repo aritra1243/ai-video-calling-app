@@ -1,7 +1,16 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const Meeting = require('../models/Meeting');
 const path = require('path');
 const fs = require('fs');
+
+// Helper to query meeting by ObjectId _id or string roomId safely without Mongoose CastError
+const getMeetingQuery = (id) => {
+  if (mongoose.Types.ObjectId.isValid(id)) {
+    return { $or: [{ _id: id }, { roomId: id }] };
+  }
+  return { roomId: id };
+};
 
 // POST /api/meetings
 exports.createMeeting = async (req, res, next) => {
@@ -74,9 +83,7 @@ exports.toggleActionItem = async (req, res, next) => {
     const { id, itemIndex } = req.params;
     const index = parseInt(itemIndex, 10);
 
-    const meeting = await Meeting.findOne({
-      $or: [{ _id: id }, { roomId: id }],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -103,12 +110,7 @@ exports.toggleActionItem = async (req, res, next) => {
 // GET /api/meetings/:id
 exports.getMeeting = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [
-        { _id: req.params.id },
-        { roomId: req.params.id },
-      ],
-    }).populate('hostId', 'name email avatar');
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id)).populate('hostId', 'name email avatar');
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -123,7 +125,7 @@ exports.getMeeting = async (req, res, next) => {
 // DELETE /api/meetings/:id
 exports.deleteMeeting = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findById(req.params.id);
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -141,7 +143,7 @@ exports.deleteMeeting = async (req, res, next) => {
       }
     }
 
-    await Meeting.findByIdAndDelete(req.params.id);
+    await Meeting.findByIdAndDelete(meeting._id);
     res.json({ message: 'Meeting deleted' });
   } catch (error) {
     next(error);
@@ -155,12 +157,7 @@ exports.uploadRecording = async (req, res, next) => {
       return res.status(400).json({ message: 'No recording file uploaded' });
     }
 
-    const meeting = await Meeting.findOne({
-      $or: [
-        { _id: req.params.id },
-        { roomId: req.params.id },
-      ],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -184,12 +181,7 @@ exports.uploadRecording = async (req, res, next) => {
 // GET /api/meetings/:id/recording
 exports.getRecording = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [
-        { _id: req.params.id },
-        { roomId: req.params.id },
-      ],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting || !meeting.recordingFilename) {
       return res.status(404).json({ message: 'Recording not found' });
@@ -209,7 +201,7 @@ exports.getRecording = async (req, res, next) => {
 // PATCH /api/meetings/:id/join
 exports.joinMeeting = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({ roomId: req.params.id });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -243,12 +235,7 @@ exports.joinMeeting = async (req, res, next) => {
 // PATCH /api/meetings/:id/end
 exports.endMeeting = async (req, res, next) => {
   try {
-    const meeting = await Meeting.findOne({
-      $or: [
-        { _id: req.params.id },
-        { roomId: req.params.id },
-      ],
-    });
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -268,3 +255,4 @@ exports.endMeeting = async (req, res, next) => {
     next(error);
   }
 };
+
