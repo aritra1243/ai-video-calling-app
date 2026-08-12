@@ -69,7 +69,7 @@ exports.transcribe = async (req, res, next) => {
 
 // Helper function to call Gemini API with model fallback list
 const getAIResponse = async (genAI, prompt) => {
-  const candidates = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+  const candidates = ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'];
   let lastError;
   for (const modelName of candidates) {
     try {
@@ -83,6 +83,7 @@ const getAIResponse = async (genAI, prompt) => {
   }
   throw lastError;
 };
+
 
 // POST /api/meetings/:id/summarize
 exports.summarize = async (req, res, next) => {
