@@ -540,13 +540,27 @@ const MeetingPage = () => {
       </div>
 
       {/* ── Main: Video Grid + Side Panels ── */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         {/* Video Grid */}
         <div style={{
           flex: 1, padding: '1rem',
-          display: 'grid',
-          gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-          gap: '0.75rem', alignContent: 'center',
+          display: allStreams.length === 1 ? 'flex' : 'grid',
+          alignItems: allStreams.length === 1 ? 'center' : 'stretch',
+          justifyContent: allStreams.length === 1 ? 'center' : 'stretch',
+          gridTemplateColumns: allStreams.length === 2
+            ? 'repeat(auto-fit, minmax(320px, 1fr))'
+            : allStreams.length <= 4
+            ? 'repeat(2, 1fr)'
+            : 'repeat(auto-fit, minmax(280px, 1fr))',
+          gridTemplateRows: allStreams.length <= 2
+            ? '1fr'
+            : allStreams.length <= 4
+            ? 'repeat(2, 1fr)'
+            : 'auto',
+          gap: '0.875rem',
+          width: '100%',
+          height: '100%',
+          overflow: 'hidden',
         }}>
           {allStreams.map(({ id, stream: s, userName, isLocal }) => (
             <VideoTile
@@ -556,6 +570,7 @@ const MeetingPage = () => {
               isLocal={isLocal}
               muted={isLocal}
               isHost={isLocal && isHost}
+              isSingle={allStreams.length === 1}
             />
           ))}
         </div>
@@ -764,7 +779,7 @@ const ControlBtn = ({ active, onClick, title, icon, danger }) => (
 );
 
 // ── Video Tile ────────────────────────────────────────────────
-const VideoTile = ({ stream, userName, isLocal, muted, isHost }) => {
+const VideoTile = ({ stream, userName, isLocal, muted, isHost, isSingle }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -774,23 +789,65 @@ const VideoTile = ({ stream, userName, isLocal, muted, isHost }) => {
   }, [stream]);
 
   return (
-    <div className="video-container" style={{ aspectRatio: '16/9', maxHeight: '100%', position: 'relative' }}>
+    <div
+      className="video-tile-wrapper"
+      style={{
+        width: '100%',
+        height: '100%',
+        maxHeight: isSingle ? 'calc(100vh - 160px)' : '100%',
+        maxWidth: isSingle ? '1100px' : '100%',
+        margin: '0 auto',
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0d1117',
+        borderRadius: '1rem',
+        border: '1px solid rgba(56, 189, 248, 0.2)',
+        overflow: 'hidden',
+        boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)',
+      }}
+    >
       <video
         ref={videoRef}
         autoPlay
         muted={muted}
         playsInline
         style={{
-          width: '100%', height: '100%', objectFit: 'cover',
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
           transform: isLocal ? 'scaleX(-1)' : 'none',
+          background: '#000',
         }}
       />
-      <div className="video-label" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+      <div
+        className="video-label"
+        style={{
+          position: 'absolute',
+          bottom: '0.875rem',
+          left: '0.875rem',
+          background: 'rgba(10, 13, 20, 0.8)',
+          backdropFilter: 'blur(12px)',
+          padding: '0.375rem 0.875rem',
+          borderRadius: '9999px',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          fontSize: '0.8125rem',
+          fontWeight: 600,
+          color: 'white',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.375rem',
+          zIndex: 10,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}
+      >
         {isHost && <span title="Host">👑</span>}
         {userName} {isLocal ? '(You)' : ''}
       </div>
     </div>
   );
 };
+
 
 export default MeetingPage;
