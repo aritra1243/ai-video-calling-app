@@ -5,6 +5,10 @@ const authMiddleware = require('../middleware/authMiddleware');
 
 router.use(authMiddleware);
 
+// Non-parameterized routes FIRST (must come before /:id routes)
+router.post('/standup-report', aiController.weeklyStandupReport);
+
+// Parameterized routes
 router.post('/:id/transcribe', aiController.transcribe);
 router.post('/:id/summarize', aiController.summarize);
 router.post('/:id/ask', aiController.askMeeting);

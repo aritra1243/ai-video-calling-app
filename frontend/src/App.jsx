@@ -7,6 +7,9 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import MeetingPage from './pages/MeetingPage';
 import MeetingDetailsPage from './pages/MeetingDetailsPage';
+import AISummariesPage from './pages/AISummariesPage';
+import DailyStandupPage from './pages/DailyStandupPage';
+import WeeklyReportPage from './pages/WeeklyReportPage';
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -72,15 +75,18 @@ function App() {
               <PublicRoute><RegisterPage /></PublicRoute>
             } />
 
-            {/* Protected routes */}
+            {/* Protected routes with sidebar layout */}
             <Route element={
               <ProtectedRoute><Layout /></ProtectedRoute>
             }>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/ai-summaries" element={<AISummariesPage />} />
+              <Route path="/daily-standup" element={<DailyStandupPage />} />
+              <Route path="/weekly-report" element={<WeeklyReportPage />} />
               <Route path="/meeting/:roomId/details" element={<MeetingDetailsPage />} />
             </Route>
 
-            {/* Meeting room (separate layout, no navbar) */}
+            {/* Meeting room (separate layout, no sidebar) */}
             <Route path="/meeting/:roomId" element={
               <ProtectedRoute><MeetingPage /></ProtectedRoute>
             } />

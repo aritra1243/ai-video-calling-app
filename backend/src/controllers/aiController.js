@@ -1,4 +1,5 @@
 const Meeting = require('../models/Meeting');
+const StandupEntry = require('../models/StandupEntry');
 const config = require('../config/config');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
@@ -222,3 +223,75 @@ Give a clear, helpful response. If the information cannot be found in the meetin
   }
 };
 
+
+// POST /api/ai/standup-report
+// Body: { weekStart: 'YYYY-MM-DD', weeklyData: [...] }
+exports.weeklyStandupReport = async (req, res, next) => {
+  try {
+    const { weekStart, weeklyData } = req.body;
+    if (!weeklyData || !weeklyData.length) {
+      return res.status(400).json({ message: 'No standup data provided' });
+    }
+    if (!config.geminiApiKey) {
+      return res.status(500).json({ message: 'Gemini API key not configured' });
+    }
+
+    const DAY_NAMES = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+    const lines = [];
+    weeklyData.forEach(member => {
+      lines.push('== ' + member.userName + ' ==');
+      DAY_NAMES.forEach((day, idx) => {
+        const entry = member.days[idx];
+        if (!entry) {
+          lines.push('  ' + day + ': (No entry)');
+        } else {
+          lines.push('  ' + day + ':');
+          lines.push('    Win: ' + (entry.win || '-'));
+          lines.push('    One Thing: ' + (entry.oneThing || '-'));
+          lines.push('    Challenge: ' + (entry.challenge || '-'));
+        }
+      });
+      lines.push('');
+    });
+    const standupText = lines.join('\n');
+
+    const promptParts = [
+      'You are a leadership coach reviewing a team daily standup for the week of ' + weekStart + '.',
+      '',
+      'For each member evaluate:',
+      '1. Did their One Thing become next day Win? (follow-through)',
+      '2. Was their Challenge resolved by week end?',
+      '3. Brief coaching advice',
+      '',
+      'STANDUP DATA:',
+      standupText,
+      '',
+      'Respond ONLY with valid JSON (no markdown):',
+      '{',
+      '  "weekSummary": "2-3 sentence team overview",',
+      '  "members": [{"name": "name", "followThrough": "assessment", "challengeProgress": "assessment", "coaching": "tip", "score": 85}]',
+      '}',
+      '',
+      'Score 0-100 = follow-through + consistency + growth.',
+    ];
+    const prompt = promptParts.join('\n');
+
+    const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const result = await model.generateContent(prompt);
+    const responseText = result.response.text();
+
+    let reportData;
+    try {
+      const jsonMatch = responseText.match(/{[\s\S]*}/);
+      reportData = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+    } catch (parseError) {
+      console.error('Failed to parse Gemini report:', responseText);
+      reportData = { weekSummary: responseText, members: [] };
+    }
+
+    res.json({ report: reportData });
+  } catch (error) {
+    next(error);
+  }
+};

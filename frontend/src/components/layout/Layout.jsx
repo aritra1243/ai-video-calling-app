@@ -1,10 +1,10 @@
 import { Outlet } from 'react-router-dom';
-import Navbar from './Navbar';
+import Sidebar from './Sidebar';
 import { Toaster } from 'react-hot-toast';
 
 const Layout = () => {
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'row' }}>
       <Toaster
         position="top-right"
         toastOptions={{
@@ -22,8 +22,8 @@ const Layout = () => {
           },
         }}
       />
-      <Navbar />
-      <main style={{ flex: 1 }}>
+      <Sidebar />
+      <main style={{ flex: 1, minHeight: '100vh', overflowY: 'auto', background: 'var(--color-bg-primary)' }}>
         <Outlet />
       </main>
     </div>

@@ -18,6 +18,7 @@ const setupSocket = require('./socket');
 const authRoutes = require('./routes/authRoutes');
 const meetingRoutes = require('./routes/meetingRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const standupRoutes = require('./routes/standupRoutes');
 
 // Initialize Express
 const app = express();
@@ -50,6 +51,7 @@ app.use('/storage', express.static(path.join(__dirname, '../storage')));
 app.use('/api/auth', authRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/standups', standupRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

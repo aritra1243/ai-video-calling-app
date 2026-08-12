@@ -282,6 +282,24 @@ const DashboardPage = () => {
                 }}>
                   {meeting.status}
                 </span>
+                {meeting.status === 'ended' && (
+                  <button
+                    className="btn-icon"
+                    onClick={() => navigate(`/meeting/${meeting.roomId}/details`)}
+                    title={meeting.summary?.summary ? 'View AI Summary' : 'Generate AI Summary'}
+                    style={{
+                      padding: '0.5rem',
+                      cursor: 'pointer',
+                      background: meeting.summary?.summary
+                        ? 'rgba(129, 140, 248, 0.15)'
+                        : 'rgba(59, 130, 246, 0.1)',
+                      border: `1px solid ${meeting.summary?.summary ? 'rgba(129,140,248,0.3)' : 'rgba(59,130,246,0.2)'}`,
+                      color: meeting.summary?.summary ? '#818cf8' : 'var(--color-text-secondary)',
+                    }}
+                  >
+                    <HiSparkles size={16} />
+                  </button>
+                )}
                 <button
                   className="btn-icon"
                   onClick={() => copyMeetingLink(meeting.roomId)}
