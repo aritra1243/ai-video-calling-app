@@ -67,6 +67,23 @@ exports.transcribe = async (req, res, next) => {
   }
 };
 
+// Helper function to call Gemini API with model fallback list
+const getAIResponse = async (genAI, prompt) => {
+  const candidates = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro'];
+  let lastError;
+  for (const modelName of candidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent(prompt);
+      return result;
+    } catch (err) {
+      console.warn(`Gemini model candidate '${modelName}' failed:`, err.message);
+      lastError = err;
+    }
+  }
+  throw lastError;
+};
+
 // POST /api/meetings/:id/summarize
 exports.summarize = async (req, res, next) => {
   try {
@@ -85,7 +102,6 @@ exports.summarize = async (req, res, next) => {
     }
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `You are a professional meeting assistant. Analyze the following meeting transcript and provide a structured summary.
 
@@ -99,43 +115,43 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no code f
   "keyPoints": ["Key point 1", "Key point 2", "Key point 3"],
   "decisions": ["Decision 1", "Decision 2"],
   "actionItems": [
-    {"assignee": "Person name or 'Team'", "task": "Description of the action item"}
-  ],
-  "nextSteps": ["Next step 1", "Next step 2"]
-}
+    {"task": "Action item description", "assignee": "Person name or Unassigned", "completed": false}
+  ]
+}`;
 
-If any section has no relevant content, use an empty array []. Always return valid JSON.`;
-
-    const result = await model.generateContent(prompt);
+    const result = await getAIResponse(genAI, prompt);
     const responseText = result.response.text();
 
-    // Parse the JSON response
     let summaryData;
     try {
-      // Try to extract JSON from the response (handle potential markdown fences)
-      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      const jsonMatch = responseText.match(/{[\s\S]*}/);
       summaryData = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
     } catch (parseError) {
-      console.error('Failed to parse Gemini response:', responseText);
       summaryData = {
         title: meeting.title,
         summary: responseText,
         keyPoints: [],
         decisions: [],
         actionItems: [],
-        nextSteps: [],
       };
     }
 
     meeting.summary = {
-      ...summaryData,
-      processedAt: new Date(),
+      summary: summaryData.summary || responseText,
+      keyPoints: summaryData.keyPoints || [],
+      decisions: summaryData.decisions || [],
+      actionItems: summaryData.actionItems || [],
+      generatedAt: new Date(),
     };
+    if (summaryData.title) {
+      meeting.title = summaryData.title;
+    }
     await meeting.save();
 
     res.json({
       message: 'Summary generated successfully',
       summary: meeting.summary,
+      title: meeting.title,
     });
   } catch (error) {
     next(error);
@@ -176,12 +192,11 @@ exports.getSummary = async (req, res, next) => {
 exports.askMeeting = async (req, res, next) => {
   try {
     const { question } = req.body;
-    if (!question || !question.trim()) {
+    if (!question) {
       return res.status(400).json({ message: 'Question is required' });
     }
 
     const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
-
 
     if (!meeting) {
       return res.status(404).json({ message: 'Meeting not found' });
@@ -195,7 +210,6 @@ exports.askMeeting = async (req, res, next) => {
     }
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `You are an AI Meeting Assistant answering questions about a recorded meeting.
 Answer the user's question accurately, concisely, and professionally based strictly on the provided context below.
@@ -211,7 +225,7 @@ ${question}
 
 Give a clear, helpful response. If the information cannot be found in the meeting context, politely state so.`;
 
-    const result = await model.generateContent(prompt);
+    const result = await getAIResponse(genAI, prompt);
     const answer = result.response.text();
 
     res.json({
@@ -277,8 +291,7 @@ exports.weeklyStandupReport = async (req, res, next) => {
     const prompt = promptParts.join('\n');
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const result = await model.generateContent(prompt);
+    const result = await getAIResponse(genAI, prompt);
     const responseText = result.response.text();
 
     let reportData;
