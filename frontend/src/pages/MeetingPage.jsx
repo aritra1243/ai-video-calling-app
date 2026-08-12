@@ -9,9 +9,7 @@ import useRecording from '../hooks/useRecording';
 import {
   HiMicrophone, HiVideoCamera, HiDesktopComputer,
   HiChat, HiPhone, HiUsers, HiClipboardCopy,
-  HiVolumeOff, HiOutlineVideoCamera,
 } from 'react-icons/hi';
-import { HiMicrophoneOff } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const MeetingPage = () => {
