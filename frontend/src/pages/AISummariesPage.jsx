@@ -68,7 +68,7 @@ const AISummariesPage = () => {
   const withoutSummary = endedMeetings.filter(m => !m.summary?.summary);
 
   return (
-    <div style={{ padding: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+    <div className="page-container" style={{ maxWidth: '1000px' }}>
       {/* Header */}
       <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>

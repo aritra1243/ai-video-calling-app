@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -40,8 +40,21 @@ const NAV_ITEMS = [
 const Sidebar = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [collapsed, setCollapsed] = useState(false);
+  // Default to collapsed if screen width is less than 768px (mobile)
+  const [collapsed, setCollapsed] = useState(() =>
+    typeof window !== 'undefined' ? window.innerWidth < 768 : false
+  );
   const [loggingOut, setLoggingOut] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCollapsed(true);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -145,6 +158,11 @@ const Sidebar = () => {
             key={item.id}
             to={item.to}
             title={collapsed ? item.label : undefined}
+            onClick={() => {
+              if (window.innerWidth < 768) {
+                setCollapsed(true);
+              }
+            }}
             style={({ isActive }) => ({
               display: 'flex',
               alignItems: 'center',

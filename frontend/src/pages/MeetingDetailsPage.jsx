@@ -187,9 +187,9 @@ const MeetingDetailsPage = () => {
   ];
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+    <div className="page-container">
       {/* Back Button & Actions */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <button
           onClick={() => navigate('/dashboard')}
           style={{
@@ -217,10 +217,10 @@ const MeetingDetailsPage = () => {
 
       {/* Meeting Header */}
       <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.75rem' }}>
+        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.75rem', wordBreak: 'break-word' }}>
           {meeting.summary?.title || meeting.title}
         </h1>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem 1rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
           <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
             <HiCalendar size={14} />
             {new Date(meeting.createdAt).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
@@ -238,7 +238,7 @@ const MeetingDetailsPage = () => {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+      <div className="meeting-details-grid">
         {/* Left Column: Video Player */}
         <div className="animate-fade-in">
           {/* Video Player */}
@@ -267,12 +267,12 @@ const MeetingDetailsPage = () => {
           )}
 
           {/* AI Processing Buttons */}
-          <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button
               className="btn btn-secondary"
               onClick={handleTranscribe}
               disabled={transcribing || !meeting.recordingUrl}
-              style={{ flex: 1, cursor: 'pointer' }}
+              style={{ flex: '1 1 140px', cursor: 'pointer' }}
             >
               {transcribing ? (
                 <><div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }} /> Transcribing...</>
@@ -284,7 +284,7 @@ const MeetingDetailsPage = () => {
               className="btn btn-primary"
               onClick={handleSummarize}
               disabled={summarizing || !meeting.transcript?.text}
-              style={{ flex: 1, cursor: 'pointer' }}
+              style={{ flex: '1 1 140px', cursor: 'pointer' }}
             >
               {summarizing ? (
                 <><div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }} /> Summarizing...</>
@@ -306,14 +306,15 @@ const MeetingDetailsPage = () => {
             padding: '0.25rem',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--color-border)',
+            overflowX: 'auto',
           }}>
             {tabs.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 style={{
-                  flex: 1,
-                  padding: '0.625rem 0.375rem',
+                  flex: '1 0 auto',
+                  padding: '0.625rem 0.5rem',
                   borderRadius: 'var(--radius-sm)',
                   border: 'none',
                   cursor: 'pointer',
@@ -324,6 +325,7 @@ const MeetingDetailsPage = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.25rem',
+                  whiteSpace: 'nowrap',
                   transition: 'all 0.2s ease',
                   background: activeTab === tab.id ? 'var(--color-accent)' : 'transparent',
                   color: activeTab === tab.id ? 'white' : 'var(--color-text-secondary)',
@@ -334,6 +336,7 @@ const MeetingDetailsPage = () => {
               </button>
             ))}
           </div>
+
 
           {/* Tab Content */}
           <div className="glass-card" style={{

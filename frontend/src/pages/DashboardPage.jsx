@@ -105,7 +105,7 @@ const DashboardPage = () => {
   const endedWithSummary = meetings.filter((m) => m.summary?.summary).length;
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+    <div className="page-container">
       {/* Header */}
       <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
         <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem' }}>
@@ -162,7 +162,7 @@ const DashboardPage = () => {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '260px' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
           <HiSearch style={{
             position: 'absolute',
             left: '0.875rem',
@@ -179,12 +179,12 @@ const DashboardPage = () => {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem' }}>
-          <button className="btn btn-secondary" onClick={() => setShowJoinModal(true)}>
+        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: 'auto' }}>
+          <button className="btn btn-secondary" onClick={() => setShowJoinModal(true)} style={{ flex: '1 1 auto' }}>
             <HiLogin size={18} />
             Join with Code
           </button>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)} style={{ flex: '1 1 auto' }}>
             <HiPlus size={18} />
             Create Meeting
           </button>
@@ -220,12 +220,13 @@ const DashboardPage = () => {
           {meetings.map((meeting, index) => (
             <div
               key={meeting._id}
-              className="glass-card animate-fade-in"
+              className="glass-card animate-fade-in meeting-card"
               style={{
                 padding: '1.25rem 1.5rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
+                gap: '1rem',
                 animationDelay: `${index * 0.05}s`,
                 cursor: 'pointer',
               }}
@@ -237,7 +238,7 @@ const DashboardPage = () => {
                 }
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: '1 1 240px', minWidth: 0 }}>
                 <div style={{
                   width: '2.5rem',
                   height: '2.5rem',
@@ -250,24 +251,24 @@ const DashboardPage = () => {
                 }}>
                   <HiVideoCamera size={18} style={{ color: 'var(--color-accent-light)' }} />
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {meeting.title}
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
                       <HiCalendar size={12} />
                       {formatDate(meeting.createdAt)}
                     </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
                       <HiUsers size={12} />
                       {meeting.participants?.length || 0} participants
                     </span>
-                    <span style={{ color: 'var(--color-text-muted)', fontFamily: 'monospace' }}>
+                    <span style={{ color: 'var(--color-text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
                       ID: {meeting.roomId}
                     </span>
                     {meeting.summary?.summary && (
-                      <span className="badge badge-success" style={{ fontSize: '0.625rem', padding: '0.125rem 0.5rem' }}>
+                      <span className="badge badge-success" style={{ fontSize: '0.625rem', padding: '0.125rem 0.5rem', whiteSpace: 'nowrap' }}>
                         AI Summary
                       </span>
                     )}
@@ -275,7 +276,7 @@ const DashboardPage = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
+              <div className="meeting-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
                 <span className="badge" style={{
                   background: statusColors[meeting.status]?.bg,
                   color: statusColors[meeting.status]?.color,
@@ -321,6 +322,7 @@ const DashboardPage = () => {
           ))}
         </div>
       )}
+
 
       {/* Create Meeting Modal */}
       {showCreateModal && (
