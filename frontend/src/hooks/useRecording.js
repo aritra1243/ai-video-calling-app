@@ -17,16 +17,21 @@ const useRecording = () => {
     chunksRef.current = [];
     setRecordingBlob(null);
 
-    const options = { mimeType: 'video/webm;codecs=vp9,opus' };
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options.mimeType = 'video/webm;codecs=vp8,opus';
-    }
-    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-      options.mimeType = 'video/webm';
+    let options;
+    if (MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')) {
+      options = { mimeType: 'video/webm;codecs=vp9,opus' };
+    } else if (MediaRecorder.isTypeSupported('video/webm;codecs=vp8,opus')) {
+      options = { mimeType: 'video/webm;codecs=vp8,opus' };
+    } else if (MediaRecorder.isTypeSupported('video/webm')) {
+      options = { mimeType: 'video/webm' };
+    } else if (MediaRecorder.isTypeSupported('video/mp4')) {
+      options = { mimeType: 'video/mp4' };
+    } else {
+      options = undefined; // Fallback to browser native default
     }
 
     try {
-      const recorder = new MediaRecorder(stream, options);
+      const recorder = options ? new MediaRecorder(stream, options) : new MediaRecorder(stream);
 
       recorder.ondataavailable = (event) => {
         if (event.data && event.data.size > 0) {
@@ -35,10 +40,12 @@ const useRecording = () => {
       };
 
       recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: options.mimeType });
+        const mimeType = recorder.mimeType || options?.mimeType || 'video/webm';
+        const blob = new Blob(chunksRef.current, { type: mimeType });
         setRecordingBlob(blob);
         clearInterval(timerRef.current);
       };
+
 
       recorder.start(1000); // Collect data every second
       mediaRecorderRef.current = recorder;
