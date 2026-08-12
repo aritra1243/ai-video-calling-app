@@ -19,6 +19,7 @@ const DashboardPage = () => {
   const [meetingTitle, setMeetingTitle] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [creating, setCreating] = useState(false);
+  const [selectedDate, setSelectedDate] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
