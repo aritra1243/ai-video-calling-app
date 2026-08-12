@@ -216,34 +216,54 @@ const WeeklyReportPage = () => {
         </div>
 
         {/* Week Navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.5rem' }}>
-          <button className="btn-icon" onClick={goToPrevWeek} style={{ padding: '0.5rem' }} title="Previous week">
-            <HiChevronLeft size={18} />
-          </button>
-          <div style={{
-            padding: '0.5rem 1.25rem', borderRadius: '0.75rem',
-            background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.15)',
-            fontSize: '0.875rem', fontWeight: 600, color: '#38bdf8',
-            display: 'flex', alignItems: 'center', gap: '0.5rem',
-          }}>
-            <HiCalendar size={14} />
-            {formatWeekLabel(currentWeekStart.toISOString())}
-            {isCurrentWeek && (
-              <span style={{ fontSize: '0.6875rem', background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>
-                This Week
-              </span>
-            )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button className="btn-icon" onClick={goToPrevWeek} style={{ padding: '0.5rem' }} title="Previous week">
+              <HiChevronLeft size={18} />
+            </button>
+            <div style={{
+              padding: '0.5rem 1.25rem', borderRadius: '0.75rem',
+              background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.15)',
+              fontSize: '0.875rem', fontWeight: 600, color: '#38bdf8',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+            }}>
+              <HiCalendar size={14} />
+              {formatWeekLabel(currentWeekStart.toISOString())}
+              {isCurrentWeek && (
+                <span style={{ fontSize: '0.6875rem', background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>
+                  This Week
+                </span>
+              )}
+            </div>
+            <button
+              className="btn-icon"
+              onClick={goToNextWeek}
+              disabled={isCurrentWeek}
+              style={{ padding: '0.5rem', opacity: isCurrentWeek ? 0.3 : 1 }}
+              title="Next week"
+            >
+              <HiChevronRight size={18} />
+            </button>
           </div>
-          <button
-            className="btn-icon"
-            onClick={goToNextWeek}
-            disabled={isCurrentWeek}
-            style={{ padding: '0.5rem', opacity: isCurrentWeek ? 0.3 : 1 }}
-            title="Next week"
-          >
-            <HiChevronRight size={18} />
-          </button>
+
+          {/* Calendar Date Picker to jump to any week */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Jump to date:</span>
+            <input
+              type="date"
+              className="input"
+              onChange={(e) => {
+                if (e.target.value) {
+                  const targetDate = new Date(e.target.value);
+                  setCurrentWeekStart(getWeekStart(targetDate));
+                }
+              }}
+              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.75rem', cursor: 'pointer' }}
+              title="Select a date to jump to that week's report"
+            />
+          </div>
         </div>
+
       </div>
 
       {/* AI Report Panel */}

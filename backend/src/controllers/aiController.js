@@ -85,7 +85,7 @@ exports.summarize = async (req, res, next) => {
     }
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `You are a professional meeting assistant. Analyze the following meeting transcript and provide a structured summary.
 
@@ -195,7 +195,7 @@ exports.askMeeting = async (req, res, next) => {
     }
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
     const prompt = `You are an AI Meeting Assistant answering questions about a recorded meeting.
 Answer the user's question accurately, concisely, and professionally based strictly on the provided context below.
@@ -277,7 +277,7 @@ exports.weeklyStandupReport = async (req, res, next) => {
     const prompt = promptParts.join('\n');
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
-    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
 

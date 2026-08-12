@@ -63,27 +63,57 @@ const AISummariesPage = () => {
   const formatDate = (date) =>
     new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 
+  const [selectedDate, setSelectedDate] = useState('');
+
   const endedMeetings = meetings.filter(m => m.status === 'ended');
   const withSummary = endedMeetings.filter(m => m.summary?.summary);
   const withoutSummary = endedMeetings.filter(m => !m.summary?.summary);
+
+  const filteredEndedMeetings = endedMeetings.filter((m) => {
+    if (!selectedDate) return true;
+    return new Date(m.createdAt).toISOString().slice(0, 10) === selectedDate;
+  });
 
   return (
     <div className="page-container" style={{ maxWidth: '1000px' }}>
       {/* Header */}
       <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <div style={{
-            width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem',
-            background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.15))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <HiSparkles size={22} color="#818cf8" />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div style={{
+              width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem',
+              background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.15))',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <HiSparkles size={22} color="#818cf8" />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>AI Summaries</h1>
+              <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+                Post-meeting AI analysis, key points & action items
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>AI Summaries</h1>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-              Post-meeting AI analysis, key points & action items
-            </p>
+
+          {/* Calendar Date Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="date"
+              className="input"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{ fontSize: '0.8125rem', padding: '0.5rem 0.75rem', cursor: 'pointer' }}
+              title="Filter summaries by meeting date"
+            />
+            {selectedDate && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setSelectedDate('')}
+                style={{ fontSize: '0.75rem', padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}
+              >
+                Clear Date
+              </button>
+            )}
           </div>
         </div>
 
@@ -106,20 +136,25 @@ const AISummariesPage = () => {
         <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
           <div className="spinner" />
         </div>
-      ) : endedMeetings.length === 0 ? (
+      ) : filteredEndedMeetings.length === 0 ? (
         <div className="glass-card" style={{ padding: '4rem', textAlign: 'center' }}>
           <HiSparkles size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem', display: 'block' }} />
-          <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>No ended meetings yet</h3>
+          <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
+            {selectedDate ? 'No summaries found for selected date' : 'No ended meetings yet'}
+          </h3>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-            AI summaries are generated for completed meetings with recordings
+            {selectedDate ? 'Try selecting a different date from the calendar filter' : 'AI summaries are generated for completed meetings with recordings'}
           </p>
-          <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
-            Go to Dashboard
-          </button>
+          {!selectedDate && (
+            <button className="btn btn-primary" onClick={() => navigate('/dashboard')}>
+              Go to Dashboard
+            </button>
+          )}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          {endedMeetings.map((meeting, index) => {
+          {filteredEndedMeetings.map((meeting, index) => {
+
             const hasSummary = Boolean(meeting.summary?.summary);
             const hasTranscript = Boolean(meeting.transcript?.text);
             const hasRecording = Boolean(meeting.recordingFilename);

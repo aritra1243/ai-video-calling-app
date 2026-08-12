@@ -97,6 +97,13 @@ const DailyStandupPage = () => {
     lineHeight: 1.6,
   };
 
+  const [historyDateFilter, setHistoryDateFilter] = useState('');
+
+  const filteredHistory = history.filter((entry) => {
+    if (!historyDateFilter) return true;
+    return new Date(entry.date).toISOString().slice(0, 10) === historyDateFilter;
+  });
+
   return (
     <div className="page-container" style={{ maxWidth: '900px' }}>
       {/* Page Header */}
@@ -260,22 +267,46 @@ const DailyStandupPage = () => {
 
       {/* History */}
       <div>
-        <h2 style={{ fontSize: '1.125rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <HiCalendar size={18} style={{ color: '#38bdf8' }} />
-          My Standup History
-        </h2>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem', marginBottom: '1rem' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <HiCalendar size={18} style={{ color: '#38bdf8' }} />
+            My Standup History
+          </h2>
+
+          {/* Calendar Date Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <input
+              type="date"
+              className="input"
+              value={historyDateFilter}
+              onChange={(e) => setHistoryDateFilter(e.target.value)}
+              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.75rem', cursor: 'pointer' }}
+              title="Search standups by date"
+            />
+            {historyDateFilter && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setHistoryDateFilter('')}
+                style={{ fontSize: '0.75rem', padding: '0.4rem 0.75rem', whiteSpace: 'nowrap' }}
+              >
+                Clear Date
+              </button>
+            )}
+          </div>
+        </div>
 
         {historyLoading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
             <div className="spinner" />
           </div>
-        ) : history.length === 0 ? (
+        ) : filteredHistory.length === 0 ? (
           <div className="glass-card" style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
-            No standup history yet. Submit your first standup above!
+            {historyDateFilter ? 'No standups found for the selected date.' : 'No standup history yet. Submit your first standup above!'}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {history.map((entry, i) => (
+            {filteredHistory.map((entry, i) => (
+
               <div key={entry._id} className="glass-card animate-fade-in" style={{ padding: '1.125rem 1.5rem', animationDelay: `${i * 0.04}s` }}>
                 <div style={{ fontSize: '0.75rem', fontWeight: 600, color: '#38bdf8', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <HiCalendar size={12} />

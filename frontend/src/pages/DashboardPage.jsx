@@ -95,7 +95,7 @@ const DashboardPage = () => {
   };
 
   const statusColors = {
-    scheduled: { bg: 'rgba(59, 130, 246, 0.15)', color: '#3b82f6' },
+    scheduled: { bg: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8' },
     active: { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981' },
     ended: { bg: 'rgba(107, 114, 128, 0.15)', color: '#9a9ab0' },
   };
@@ -103,6 +103,12 @@ const DashboardPage = () => {
   const activeMeetings = meetings.filter((m) => m.status === 'active').length;
   const totalMeetings = meetings.length;
   const endedWithSummary = meetings.filter((m) => m.summary?.summary).length;
+
+  const filteredMeetings = meetings.filter((m) => {
+    if (!selectedDate) return true;
+    const meetingDate = new Date(m.createdAt).toISOString().slice(0, 10);
+    return meetingDate === selectedDate;
+  });
 
   return (
     <div className="page-container">
@@ -162,21 +168,46 @@ const DashboardPage = () => {
         justifyContent: 'space-between',
         alignItems: 'center',
       }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: '240px' }}>
-          <HiSearch style={{
-            position: 'absolute',
-            left: '0.875rem',
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: 'var(--color-text-muted)',
-          }} size={18} />
-          <input
-            className="input"
-            style={{ paddingLeft: '2.5rem' }}
-            placeholder="Search meetings by title, room code, or AI transcript..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+        <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+            <HiSearch style={{
+              position: 'absolute',
+              left: '0.875rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--color-text-muted)',
+            }} size={18} />
+            <input
+              className="input"
+              style={{ paddingLeft: '2.5rem' }}
+              placeholder="Search meetings..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+
+          {/* Calendar Date Search */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <input
+                type="date"
+                className="input"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                style={{ fontSize: '0.8125rem', padding: '0.5rem 0.75rem', cursor: 'pointer', minWidth: '130px' }}
+                title="Filter by meeting date"
+              />
+            </div>
+            {selectedDate && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setSelectedDate('')}
+                style={{ fontSize: '0.75rem', padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}
+              >
+                Clear Date
+              </button>
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: 'auto' }}>
@@ -196,19 +227,19 @@ const DashboardPage = () => {
         <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
           <div className="spinner" />
         </div>
-      ) : meetings.length === 0 ? (
+      ) : filteredMeetings.length === 0 ? (
         <div className="glass-card" style={{
           padding: '4rem 2rem',
           textAlign: 'center',
         }}>
           <HiVideoCamera size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
           <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-            {searchQuery ? 'No matching meetings found' : 'No meetings yet'}
+            {searchQuery || selectedDate ? 'No matching meetings found' : 'No meetings yet'}
           </h3>
           <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-            {searchQuery ? 'Try searching with a different keyword or room code' : 'Create your first meeting to get started'}
+            {searchQuery || selectedDate ? 'Try selecting a different date or keyword' : 'Create your first meeting to get started'}
           </p>
-          {!searchQuery && (
+          {!searchQuery && !selectedDate && (
             <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
               <HiPlus size={18} />
               Create Meeting
@@ -217,7 +248,7 @@ const DashboardPage = () => {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {meetings.map((meeting, index) => (
+          {filteredMeetings.map((meeting, index) => (
             <div
               key={meeting._id}
               className="glass-card animate-fade-in meeting-card"
