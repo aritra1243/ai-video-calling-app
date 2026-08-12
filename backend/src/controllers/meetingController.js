@@ -254,6 +254,11 @@ exports.endMeeting = async (req, res, next) => {
       return res.status(404).json({ message: 'Meeting not found' });
     }
 
+    // Only the host can end the meeting
+    if (meeting.hostId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: 'Only the host can end this meeting' });
+    }
+
     meeting.status = 'ended';
     meeting.endedAt = new Date();
     await meeting.save();

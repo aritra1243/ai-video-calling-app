@@ -9,7 +9,9 @@ import useRecording from '../hooks/useRecording';
 import {
   HiMicrophone, HiVideoCamera, HiDesktopComputer,
   HiChat, HiPhone, HiUsers, HiClipboardCopy,
+  HiVolumeOff, HiOutlineVideoCamera,
 } from 'react-icons/hi';
+import { HiMicrophoneOff } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const MeetingPage = () => {
@@ -26,6 +28,9 @@ const MeetingPage = () => {
   const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [ending, setEnding] = useState(false);
+  const [previewStarted, setPreviewStarted] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
 
   // Refs
   const localVideoRef = useRef(null);
@@ -49,7 +54,12 @@ const MeetingPage = () => {
     startRecording, stopRecording, formatTime,
   } = useRecording();
 
-  // Load meeting info
+  // ── Derive if current user is the host ──────────────────────
+  const isHost = meeting
+    ? (meeting.hostId?._id || meeting.hostId)?.toString() === user?._id?.toString()
+    : false;
+
+  // ── Load meeting info ────────────────────────────────────────
   useEffect(() => {
     const loadMeeting = async () => {
       try {
@@ -64,25 +74,57 @@ const MeetingPage = () => {
     loadMeeting();
   }, [roomId]);
 
-  // Set local video
+  // ── Start camera preview immediately in lobby ────────────────
+  useEffect(() => {
+    if (!loading && !joined && !previewStarted) {
+      const startPreview = async () => {
+        try {
+          await startMedia(true, true);
+          setPreviewStarted(true);
+        } catch {
+          // Permissions denied or no camera
+          setPreviewError(true);
+          setPreviewStarted(true);
+        }
+      };
+      startPreview();
+    }
+    // Cleanup preview if user navigates away from lobby without joining
+    return () => {
+      if (!joined) {
+        // stopMedia is called on leave, not here — stream carries into meeting
+      }
+    };
+  }, [loading, joined]);
+
+  // ── Set local video whenever stream changes ──────────────────
   useEffect(() => {
     if (localVideoRef.current && stream) {
       localVideoRef.current.srcObject = stream;
     }
   }, [stream]);
 
-  // Auto-scroll chat
+  // ── Auto-scroll chat ─────────────────────────────────────────
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  // Listen for chat & recording signals
+  // ── Socket event listeners ───────────────────────────────────
   useEffect(() => {
     if (!socket) return;
+
     const handleChat = (msg) => {
       setMessages((prev) => [...prev, msg]);
     };
+
+    const handleMeetingEnded = ({ hostName }) => {
+      toast(`🛑 ${hostName} ended the meeting`, { icon: '📋', duration: 3000 });
+      stopMedia();
+      navigate('/dashboard');
+    };
+
     socket.on('chat-message', handleChat);
+    socket.on('meeting-ended', handleMeetingEnded);
 
     socket.on('recording-started', ({ userName }) => {
       toast(`🔴 ${userName} started recording`, { icon: '⏺️' });
@@ -93,20 +135,21 @@ const MeetingPage = () => {
 
     return () => {
       socket.off('chat-message', handleChat);
+      socket.off('meeting-ended', handleMeetingEnded);
       socket.off('recording-started');
       socket.off('recording-stopped');
     };
   }, [socket]);
 
-  // Handle recording blob upload
+  // ── Handle recording blob upload ─────────────────────────────
   useEffect(() => {
     if (recordingBlob && meeting) {
       const uploadRecording = async () => {
         try {
-          toast.loading('Uploading recording file to storage...', { id: 'upload' });
+          toast.loading('Uploading recording to storage...', { id: 'upload' });
           await meetingService.uploadRecording(meeting._id || roomId, recordingBlob);
-          toast.success('Recording saved! Transcribe & Summarize available in details.', { id: 'upload' });
-        } catch (err) {
+          toast.success('Recording saved! Transcribe & Summarize in meeting details.', { id: 'upload' });
+        } catch {
           toast.error('Failed to upload recording', { id: 'upload' });
         }
       };
@@ -114,64 +157,83 @@ const MeetingPage = () => {
     }
   }, [recordingBlob]);
 
-  // Join meeting
+  // ── Join meeting (stream is already running from preview) ────
   const handleJoin = async () => {
     try {
-      const mediaStream = await startMedia(true, true);
+      // If preview failed, try starting media now
+      if (!stream) {
+        await startMedia(true, true);
+      }
 
       try {
         const data = await meetingService.join(roomId);
         setMeeting(data.meeting);
-      } catch (e) {
-        // Fallback for standalone link join
+      } catch {
+        // Fallback for standalone join
       }
 
       if (socket) {
-        socket.emit('join-room', { roomId, userName: user?.name });
+        socket.emit('join-room', { roomId, userName: user?.name, userId: user?._id });
       }
 
       setJoined(true);
       toast.success('Connected to meeting!');
-    } catch (err) {
+    } catch {
       toast.error('Failed to access camera/microphone. Please verify browser permissions.');
     }
   };
 
-  // Leave meeting
+  // ── Leave meeting (participant only) ─────────────────────────
   const handleLeave = () => {
     if (isRecording) stopRecording();
     stopMedia();
-    if (socket) {
-      socket.emit('leave-room', { roomId });
-    }
+    if (socket) socket.emit('leave-room', { roomId });
     navigate('/dashboard');
   };
 
-  // Toggle audio
+  // ── End meeting (host only) ──────────────────────────────────
+  const handleEndMeeting = async () => {
+    if (!window.confirm('End this meeting for everyone?')) return;
+    setEnding(true);
+    try {
+      // Update meeting status in DB first
+      await meetingService.end(meeting._id || roomId);
+      // Broadcast to all participants via socket
+      if (socket) socket.emit('host-end-meeting', { roomId });
+      // Stop local media and navigate
+      if (isRecording) stopRecording();
+      stopMedia();
+      toast.success('Meeting ended');
+      navigate('/dashboard');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to end meeting');
+      setEnding(false);
+    }
+  };
+
+  // ── Toggle audio ─────────────────────────────────────────────
   const handleToggleAudio = () => {
     const enabled = toggleAudio();
-    if (socket) {
+    if (joined && socket) {
       socket.emit('toggle-media', { roomId, type: 'audio', enabled });
     }
   };
 
-  // Toggle video
+  // ── Toggle video ─────────────────────────────────────────────
   const handleToggleVideo = () => {
     const enabled = toggleVideo();
-    if (socket) {
+    if (joined && socket) {
       socket.emit('toggle-media', { roomId, type: 'video', enabled });
     }
   };
 
-  // Screen share
+  // ── Screen share ─────────────────────────────────────────────
   const handleScreenShare = async () => {
     if (isScreenSharing) {
       stopScreenShare();
       if (streamRef.current) {
         const cameraTrack = streamRef.current.getVideoTracks()[0];
-        if (cameraTrack) {
-          replaceTrack(cameraTrack, null);
-        }
+        if (cameraTrack) replaceTrack(cameraTrack, null);
       }
       socket?.emit('screen-share-stopped', { roomId });
     } else {
@@ -179,24 +241,19 @@ const MeetingPage = () => {
         const displayStream = await startScreenShare();
         const screenTrack = displayStream.getVideoTracks()[0];
         const cameraTrack = streamRef.current?.getVideoTracks()[0];
-        if (screenTrack) {
-          replaceTrack(screenTrack, cameraTrack);
-        }
+        if (screenTrack) replaceTrack(screenTrack, cameraTrack);
         socket?.emit('screen-share-started', { roomId });
-
         screenTrack.addEventListener('ended', () => {
-          if (cameraTrack) {
-            replaceTrack(cameraTrack, screenTrack);
-          }
+          if (cameraTrack) replaceTrack(cameraTrack, screenTrack);
           socket?.emit('screen-share-stopped', { roomId });
         });
-      } catch (err) {
-        // User cancelled screen share selection
+      } catch {
+        // User cancelled
       }
     }
   };
 
-  // Recording
+  // ── Recording ────────────────────────────────────────────────
   const handleRecording = () => {
     if (isRecording) {
       stopRecording();
@@ -211,12 +268,10 @@ const MeetingPage = () => {
   };
 
   const copyLink = () => {
-    const link = window.location.href;
-    navigator.clipboard.writeText(link);
+    navigator.clipboard.writeText(window.location.href);
     toast.success('Meeting link copied!');
   };
 
-  // Send chat message
   const handleSendMessage = (e) => {
     e.preventDefault();
     if (!messageInput.trim() || !socket) return;
@@ -228,7 +283,7 @@ const MeetingPage = () => {
     setMessageInput('');
   };
 
-  // Combine local and remote video streams
+  // Combine local + remote streams
   const allStreams = [];
   if (stream) {
     allStreams.push({ id: 'local', stream, userName: user?.name || 'You', isLocal: true });
@@ -236,10 +291,11 @@ const MeetingPage = () => {
   remoteStreams.forEach((data, socketId) => {
     allStreams.push({ id: socketId, stream: data.stream, userName: data.userName, isLocal: false });
   });
-
   const gridCols = allStreams.length <= 1 ? 1 : allStreams.length <= 4 ? 2 : 3;
 
-  // ─── Lobby Screen ──────────────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // LOBBY SCREEN
+  // ═══════════════════════════════════════════════════════════
   if (!joined) {
     return (
       <div style={{
@@ -250,24 +306,31 @@ const MeetingPage = () => {
         padding: '2rem',
         background: 'var(--color-bg-primary)',
       }}>
-        <div className="animate-slide-up" style={{ width: '100%', maxWidth: '520px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>
+        <div className="animate-slide-up" style={{ width: '100%', maxWidth: '560px', textAlign: 'center' }}>
+          {/* Title */}
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.375rem' }}>
             {meeting?.title || 'Join Call'}
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>
             Room ID: <span style={{ fontFamily: 'monospace', color: 'var(--color-accent-light)' }}>{roomId}</span>
+            {isHost && (
+              <span style={{
+                marginLeft: '0.75rem', fontSize: '0.6875rem', fontWeight: 700,
+                background: 'rgba(2,132,199,0.15)', color: '#38bdf8',
+                padding: '0.125rem 0.625rem', borderRadius: '9999px',
+                border: '1px solid rgba(56,189,248,0.25)',
+              }}>
+                👑 Host
+              </span>
+            )}
           </p>
 
-          {/* Video Preview */}
+          {/* Camera Preview */}
           <div className="glass-card" style={{
-            width: '100%',
-            aspectRatio: '16/9',
-            marginBottom: '1.5rem',
-            overflow: 'hidden',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            position: 'relative',
+            width: '100%', aspectRatio: '16/9', marginBottom: '1rem',
+            overflow: 'hidden', position: 'relative',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(10,10,15,0.9)',
           }}>
             <video
               ref={localVideoRef}
@@ -275,83 +338,162 @@ const MeetingPage = () => {
               muted
               playsInline
               style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
+                width: '100%', height: '100%', objectFit: 'cover',
                 transform: 'scaleX(-1)',
+                display: videoEnabled && stream ? 'block' : 'none',
               }}
             />
-            {!stream && (
+
+            {/* Camera off / no stream overlay */}
+            {(!stream || !videoEnabled) && (
               <div style={{
-                position: 'absolute',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '0.75rem',
+                position: 'absolute', inset: 0,
+                display: 'flex', flexDirection: 'column',
+                alignItems: 'center', justifyContent: 'center', gap: '0.75rem',
               }}>
-                <HiVideoCamera size={48} style={{ color: 'var(--color-text-muted)' }} />
-                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-                  Camera preview will activate when you join
+                {/* Avatar circle */}
+                <div style={{
+                  width: '5rem', height: '5rem', borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '2rem', fontWeight: 700, color: 'white',
+                  boxShadow: '0 0 30px rgba(2,132,199,0.4)',
+                }}>
+                  {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+                </div>
+                <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem' }}>
+                  {previewError ? 'Camera unavailable' : !stream ? 'Starting camera...' : 'Camera is off'}
                 </p>
               </div>
             )}
+
+            {/* Mic/Cam status badges */}
+            <div style={{ position: 'absolute', top: '0.75rem', right: '0.75rem', display: 'flex', gap: '0.5rem' }}>
+              {!audioEnabled && (
+                <div style={{
+                  padding: '0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.6875rem',
+                  background: 'rgba(239,68,68,0.8)', color: 'white', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: '0.25rem',
+                }}>
+                  🔇 Muted
+                </div>
+              )}
+              {!videoEnabled && stream && (
+                <div style={{
+                  padding: '0.25rem 0.625rem', borderRadius: '9999px', fontSize: '0.6875rem',
+                  background: 'rgba(239,68,68,0.8)', color: 'white', fontWeight: 600,
+                }}>
+                  📷 Off
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Media Toggles */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginBottom: '2rem' }}>
+          {/* Mic & Camera toggle buttons */}
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginBottom: '1.75rem' }}>
+            {/* Mic button */}
             <button
-              className={`btn-icon ${audioEnabled ? '' : 'danger'}`}
               onClick={handleToggleAudio}
-              style={{ cursor: 'pointer', padding: '0.875rem' }}
-              title={audioEnabled ? 'Mute Mic' : 'Unmute Mic'}
+              disabled={!stream}
+              title={audioEnabled ? 'Mute microphone' : 'Unmute microphone'}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem',
+                padding: '0', background: 'transparent', border: 'none', cursor: stream ? 'pointer' : 'not-allowed',
+                opacity: stream ? 1 : 0.4,
+              }}
             >
-              <HiMicrophone size={20} />
+              <div style={{
+                width: '3.5rem', height: '3.5rem', borderRadius: '50%',
+                background: audioEnabled ? 'linear-gradient(135deg, #0284c7, #2563eb)' : 'rgba(239,68,68,0.2)',
+                border: audioEnabled ? '2px solid rgba(56,189,248,0.4)' : '2px solid rgba(239,68,68,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                boxShadow: audioEnabled ? '0 0 20px rgba(2,132,199,0.3)' : '0 0 15px rgba(239,68,68,0.2)',
+              }}>
+                <HiMicrophone size={22} color={audioEnabled ? 'white' : '#ef4444'} />
+              </div>
+              <span style={{ fontSize: '0.75rem', color: audioEnabled ? 'var(--color-text-secondary)' : '#ef4444', fontWeight: 500 }}>
+                {audioEnabled ? 'Mic On' : 'Mic Off'}
+              </span>
             </button>
+
+            {/* Camera button */}
             <button
-              className={`btn-icon ${videoEnabled ? '' : 'danger'}`}
               onClick={handleToggleVideo}
-              style={{ cursor: 'pointer', padding: '0.875rem' }}
-              title={videoEnabled ? 'Turn Off Camera' : 'Turn On Camera'}
+              disabled={!stream}
+              title={videoEnabled ? 'Turn off camera' : 'Turn on camera'}
+              style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.375rem',
+                padding: '0', background: 'transparent', border: 'none', cursor: stream ? 'pointer' : 'not-allowed',
+                opacity: stream ? 1 : 0.4,
+              }}
             >
-              <HiVideoCamera size={20} />
+              <div style={{
+                width: '3.5rem', height: '3.5rem', borderRadius: '50%',
+                background: videoEnabled ? 'linear-gradient(135deg, #0284c7, #2563eb)' : 'rgba(239,68,68,0.2)',
+                border: videoEnabled ? '2px solid rgba(56,189,248,0.4)' : '2px solid rgba(239,68,68,0.5)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                transition: 'all 0.2s ease',
+                boxShadow: videoEnabled ? '0 0 20px rgba(2,132,199,0.3)' : '0 0 15px rgba(239,68,68,0.2)',
+              }}>
+                <HiVideoCamera size={22} color={videoEnabled ? 'white' : '#ef4444'} />
+              </div>
+              <span style={{ fontSize: '0.75rem', color: videoEnabled ? 'var(--color-text-secondary)' : '#ef4444', fontWeight: 500 }}>
+                {videoEnabled ? 'Cam On' : 'Cam Off'}
+              </span>
             </button>
           </div>
 
+          {/* Join button */}
           <button
             className="btn btn-primary"
             onClick={handleJoin}
-            style={{ padding: '0.875rem 3rem', fontSize: '1rem', width: '100%' }}
+            style={{ width: '100%', padding: '1rem', fontSize: '1rem', fontWeight: 600 }}
           >
             Join Meeting Room
           </button>
+
+          {loading && (
+            <p style={{ marginTop: '0.75rem', fontSize: '0.8125rem', color: 'var(--color-text-muted)' }}>
+              Loading meeting info...
+            </p>
+          )}
         </div>
       </div>
     );
   }
 
-  // ─── Meeting Room Screen ───────────────────────────────────
+  // ═══════════════════════════════════════════════════════════
+  // MEETING ROOM SCREEN
+  // ═══════════════════════════════════════════════════════════
   return (
     <div style={{
-      height: '100vh',
-      display: 'flex',
-      flexDirection: 'column',
-      background: 'var(--color-bg-primary)',
-      overflow: 'hidden',
+      height: '100vh', display: 'flex', flexDirection: 'column',
+      background: 'var(--color-bg-primary)', overflow: 'hidden',
     }}>
-      {/* Top Bar */}
+      {/* ── Top Bar ── */}
       <div style={{
         padding: '0.75rem 1.5rem',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         borderBottom: '1px solid var(--color-border)',
-        background: 'rgba(10, 10, 15, 0.8)',
-        backdropFilter: 'blur(20px)',
+        background: 'rgba(10, 10, 15, 0.8)', backdropFilter: 'blur(20px)',
       }}>
         <div>
-          <h2 style={{ fontSize: '0.9375rem', fontWeight: 600 }}>
-            {meeting?.title || 'Corporate Meeting'}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <h2 style={{ fontSize: '0.9375rem', fontWeight: 600 }}>
+              {meeting?.title || 'Corporate Meeting'}
+            </h2>
+            {isHost && (
+              <span style={{
+                fontSize: '0.625rem', fontWeight: 700,
+                background: 'rgba(2,132,199,0.15)', color: '#38bdf8',
+                padding: '0.125rem 0.5rem', borderRadius: '9999px',
+                border: '1px solid rgba(56,189,248,0.2)',
+              }}>
+                👑 HOST
+              </span>
+            )}
+          </div>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
             Room: <span style={{ fontFamily: 'monospace' }}>{roomId}</span> · {allStreams.length} participant{allStreams.length !== 1 ? 's' : ''}
           </p>
@@ -359,29 +501,18 @@ const MeetingPage = () => {
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <button className="btn btn-secondary" onClick={copyLink} style={{ padding: '0.375rem 0.75rem', fontSize: '0.75rem' }}>
-            <HiClipboardCopy size={14} />
-            Copy Link
+            <HiClipboardCopy size={14} /> Copy Link
           </button>
-
           {isRecording && (
             <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
               padding: '0.375rem 0.75rem',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: 'var(--radius-full)',
-              fontSize: '0.75rem',
-              fontWeight: 600,
-              color: 'var(--color-danger)',
+              background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-danger)',
             }}>
               <div style={{
-                width: '0.5rem',
-                height: '0.5rem',
-                borderRadius: '50%',
-                background: 'var(--color-danger)',
-                animation: 'recording-pulse 1.5s infinite',
+                width: '0.5rem', height: '0.5rem', borderRadius: '50%',
+                background: 'var(--color-danger)', animation: 'recording-pulse 1.5s infinite',
               }} />
               REC {formatTime(recordingTime)}
             </div>
@@ -389,20 +520,14 @@ const MeetingPage = () => {
         </div>
       </div>
 
-      {/* Main Grid & Side Panels */}
-      <div style={{
-        flex: 1,
-        display: 'flex',
-        overflow: 'hidden',
-      }}>
+      {/* ── Main: Video Grid + Side Panels ── */}
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Video Grid */}
         <div style={{
-          flex: 1,
-          padding: '1rem',
+          flex: 1, padding: '1rem',
           display: 'grid',
           gridTemplateColumns: `repeat(${gridCols}, 1fr)`,
-          gap: '0.75rem',
-          alignContent: 'center',
+          gap: '0.75rem', alignContent: 'center',
         }}>
           {allStreams.map(({ id, stream: s, userName, isLocal }) => (
             <VideoTile
@@ -411,6 +536,7 @@ const MeetingPage = () => {
               userName={userName}
               isLocal={isLocal}
               muted={isLocal}
+              isHost={isLocal && isHost}
             />
           ))}
         </div>
@@ -418,55 +544,40 @@ const MeetingPage = () => {
         {/* Participants Panel */}
         {participantsOpen && (
           <div className="animate-slide-right" style={{
-            width: '300px',
-            borderLeft: '1px solid var(--color-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'var(--color-bg-secondary)',
+            width: '300px', borderLeft: '1px solid var(--color-border)',
+            display: 'flex', flexDirection: 'column', background: 'var(--color-bg-secondary)',
           }}>
-            <div style={{
-              padding: '1rem',
-              borderBottom: '1px solid var(--color-border)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-            }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '0.875rem' }}>
               Participants ({allStreams.length})
             </div>
             <div style={{ flex: 1, overflowY: 'auto', padding: '0.75rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-              {allStreams.map((p, i) => (
-                <div key={i} style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.75rem',
-                  padding: '0.625rem',
-                  borderRadius: 'var(--radius-md)',
-                  background: 'var(--color-bg-elevated)',
-                  border: '1px solid var(--color-border)',
-                }}>
-                  <div style={{
-                    width: '2rem',
-                    height: '2rem',
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, #0284c7, #3b82f6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    color: 'white',
+              {allStreams.map((p, i) => {
+                const participantIsHost = p.isLocal ? isHost : false;
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: '0.75rem',
+                    padding: '0.625rem', borderRadius: 'var(--radius-md)',
+                    background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border)',
                   }}>
-                    {p.userName?.charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.userName} {p.isLocal ? '(You)' : ''}
+                    <div style={{
+                      width: '2rem', height: '2rem', borderRadius: '50%',
+                      background: participantIsHost ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'linear-gradient(135deg, #0284c7, #3b82f6)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: '0.75rem', fontWeight: 700, color: 'white',
+                    }}>
+                      {p.userName?.charAt(0).toUpperCase()}
                     </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.8125rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {p.userName} {p.isLocal ? '(You)' : ''}
+                      </div>
+                    </div>
+                    <span className={participantIsHost ? 'badge badge-warning' : 'badge badge-info'} style={{ fontSize: '0.625rem' }}>
+                      {participantIsHost ? '👑 Host' : 'Member'}
+                    </span>
                   </div>
-                  <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>
-                    {p.isLocal ? 'Host' : 'Peer'}
-                  </span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         )}
@@ -474,38 +585,20 @@ const MeetingPage = () => {
         {/* Chat Panel */}
         {chatOpen && (
           <div className="animate-slide-right" style={{
-            width: '320px',
-            borderLeft: '1px solid var(--color-border)',
-            display: 'flex',
-            flexDirection: 'column',
-            background: 'var(--color-bg-secondary)',
+            width: '320px', borderLeft: '1px solid var(--color-border)',
+            display: 'flex', flexDirection: 'column', background: 'var(--color-bg-secondary)',
           }}>
-            <div style={{
-              padding: '1rem',
-              borderBottom: '1px solid var(--color-border)',
-              fontWeight: 600,
-              fontSize: '0.875rem',
-            }}>
+            <div style={{ padding: '1rem', borderBottom: '1px solid var(--color-border)', fontWeight: 600, fontSize: '0.875rem' }}>
               Meeting Chat
             </div>
-            <div style={{
-              flex: 1,
-              overflowY: 'auto',
-              padding: '1rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '0.5rem',
-            }}>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
               {messages.length === 0 && (
                 <p style={{ color: 'var(--color-text-muted)', fontSize: '0.8125rem', textAlign: 'center', padding: '2rem 0' }}>
-                  No messages sent yet
+                  No messages yet
                 </p>
               )}
               {messages.map((msg, i) => (
-                <div
-                  key={i}
-                  className={`chat-message ${msg.senderId === user?._id ? 'own' : ''}`}
-                >
+                <div key={i} className={`chat-message ${msg.senderId === user?._id ? 'own' : ''}`}>
                   <div style={{ fontSize: '0.6875rem', fontWeight: 600, color: 'var(--color-accent-light)', marginBottom: '0.25rem' }}>
                     {msg.senderName}
                   </div>
@@ -514,15 +607,10 @@ const MeetingPage = () => {
               ))}
               <div ref={chatEndRef} />
             </div>
-            <form onSubmit={handleSendMessage} style={{
-              padding: '0.75rem',
-              borderTop: '1px solid var(--color-border)',
-              display: 'flex',
-              gap: '0.5rem',
-            }}>
+            <form onSubmit={handleSendMessage} style={{ padding: '0.75rem', borderTop: '1px solid var(--color-border)', display: 'flex', gap: '0.5rem' }}>
               <input
                 className="input"
-                placeholder="Send message to meeting..."
+                placeholder="Send message..."
                 value={messageInput}
                 onChange={(e) => setMessageInput(e.target.value)}
                 style={{ fontSize: '0.8125rem' }}
@@ -535,100 +623,129 @@ const MeetingPage = () => {
         )}
       </div>
 
-      {/* Controls Bar */}
+      {/* ── Controls Bar ── */}
       <div style={{
-        padding: '1rem',
-        display: 'flex',
-        justifyContent: 'center',
+        padding: '1rem', display: 'flex', justifyContent: 'center', alignItems: 'center',
+        gap: '0.75rem', flexWrap: 'wrap',
         borderTop: '1px solid var(--color-border)',
-        background: 'rgba(10, 10, 15, 0.8)',
-        backdropFilter: 'blur(20px)',
+        background: 'rgba(10, 10, 15, 0.9)', backdropFilter: 'blur(20px)',
       }}>
-        <div className="controls-bar">
-          <button
-            className={`btn-icon ${!audioEnabled ? 'danger' : ''}`}
-            onClick={handleToggleAudio}
-            title={audioEnabled ? 'Mute' : 'Unmute'}
-            style={{ cursor: 'pointer' }}
-          >
-            <HiMicrophone size={20} />
-          </button>
+        {/* Mic */}
+        <ControlBtn
+          active={audioEnabled}
+          onClick={handleToggleAudio}
+          title={audioEnabled ? 'Mute' : 'Unmute'}
+          icon={<HiMicrophone size={20} />}
+          danger={!audioEnabled}
+        />
+        {/* Camera */}
+        <ControlBtn
+          active={videoEnabled}
+          onClick={handleToggleVideo}
+          title={videoEnabled ? 'Turn off camera' : 'Turn on camera'}
+          icon={<HiVideoCamera size={20} />}
+          danger={!videoEnabled}
+        />
+        {/* Screen share */}
+        <ControlBtn
+          active={isScreenSharing}
+          onClick={handleScreenShare}
+          title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+          icon={<HiDesktopComputer size={20} />}
+        />
+        {/* Participants */}
+        <ControlBtn
+          active={participantsOpen}
+          onClick={() => { setParticipantsOpen(!participantsOpen); if (chatOpen) setChatOpen(false); }}
+          title="Participants"
+          icon={<HiUsers size={20} />}
+        />
+        {/* Chat */}
+        <ControlBtn
+          active={chatOpen}
+          onClick={() => { setChatOpen(!chatOpen); if (participantsOpen) setParticipantsOpen(false); }}
+          title="Chat"
+          icon={<HiChat size={20} />}
+        />
+        {/* Record */}
+        <button
+          className={`btn-icon ${isRecording ? 'danger' : ''}`}
+          onClick={handleRecording}
+          title={isRecording ? 'Stop recording' : 'Start recording'}
+          style={{ cursor: 'pointer' }}
+        >
+          <div style={{
+            width: '14px', height: '14px',
+            borderRadius: isRecording ? '3px' : '50%',
+            background: '#ef4444', transition: 'all 0.2s ease',
+          }} />
+        </button>
 
-          <button
-            className={`btn-icon ${!videoEnabled ? 'danger' : ''}`}
-            onClick={handleToggleVideo}
-            title={videoEnabled ? 'Turn off camera' : 'Turn on camera'}
-            style={{ cursor: 'pointer' }}
-          >
-            <HiVideoCamera size={20} />
-          </button>
+        {/* Divider */}
+        <div style={{ width: '1px', height: '28px', background: 'var(--color-border-light)' }} />
 
+        {/* ── HOST: End Meeting button ── */}
+        {isHost && (
           <button
-            className={`btn-icon ${isScreenSharing ? 'active' : ''}`}
-            onClick={handleScreenShare}
-            title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-            style={{ cursor: 'pointer' }}
-          >
-            <HiDesktopComputer size={20} />
-          </button>
-
-          <button
-            className={`btn-icon ${participantsOpen ? 'active' : ''}`}
-            onClick={() => {
-              setParticipantsOpen(!participantsOpen);
-              if (chatOpen) setChatOpen(false);
-            }}
-            title="Participants"
-            style={{ cursor: 'pointer' }}
-          >
-            <HiUsers size={20} />
-          </button>
-
-          <button
-            className={`btn-icon ${chatOpen ? 'active' : ''}`}
-            onClick={() => {
-              setChatOpen(!chatOpen);
-              if (participantsOpen) setParticipantsOpen(false);
-            }}
-            title="Chat"
-            style={{ cursor: 'pointer' }}
-          >
-            <HiChat size={20} />
-          </button>
-
-          <button
-            className={`btn-icon ${isRecording ? 'danger' : ''}`}
-            onClick={handleRecording}
-            title={isRecording ? 'Stop recording' : 'Start recording'}
-            style={{ cursor: 'pointer' }}
-          >
-            <div style={{
-              width: '14px',
-              height: '14px',
-              borderRadius: isRecording ? '3px' : '50%',
-              background: isRecording ? 'var(--color-danger)' : '#ef4444',
+            onClick={handleEndMeeting}
+            disabled={ending}
+            title="End meeting for everyone"
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.5rem',
+              padding: '0.625rem 1.25rem', borderRadius: 'var(--radius-md)',
+              background: 'rgba(239, 68, 68, 0.15)',
+              border: '1px solid rgba(239, 68, 68, 0.4)',
+              color: '#ef4444', fontWeight: 700, fontSize: '0.8125rem',
+              cursor: ending ? 'not-allowed' : 'pointer',
               transition: 'all 0.2s ease',
-            }} />
-          </button>
-
-          <div style={{ width: '1px', height: '24px', background: 'var(--color-border-light)', margin: '0 0.25rem' }} />
-
-          <button
-            className="btn-icon danger"
-            onClick={handleLeave}
-            title="Leave call"
-            style={{ cursor: 'pointer', padding: '0.75rem 1.5rem', borderRadius: 'var(--radius-md)' }}
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.3)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.15)'; }}
           >
-            <HiPhone size={20} style={{ transform: 'rotate(135deg)' }} />
+            {ending
+              ? <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px', borderTopColor: '#ef4444' }} />
+              : <HiPhone size={16} style={{ transform: 'rotate(135deg)' }} />
+            }
+            End Meeting
           </button>
-        </div>
+        )}
+
+        {/* ── ALL: Leave button ── */}
+        <button
+          onClick={handleLeave}
+          title={isHost ? 'Leave (meeting stays active)' : 'Leave call'}
+          style={{
+            display: 'flex', alignItems: 'center', gap: '0.5rem',
+            padding: '0.625rem 1.25rem', borderRadius: 'var(--radius-md)',
+            background: isHost ? 'var(--color-bg-elevated)' : 'rgba(239, 68, 68, 0.15)',
+            border: isHost ? '1px solid var(--color-border)' : '1px solid rgba(239, 68, 68, 0.4)',
+            color: isHost ? 'var(--color-text-secondary)' : '#ef4444',
+            fontWeight: 600, fontSize: '0.8125rem', cursor: 'pointer',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <HiPhone size={16} style={{ transform: 'rotate(135deg)' }} />
+          {isHost ? 'Leave' : 'Leave Call'}
+        </button>
       </div>
     </div>
   );
 };
 
-// ─── Video Tile Subcomponent ───────────────────────────────
-const VideoTile = ({ stream, userName, isLocal, muted }) => {
+// ── Control Button helper ──────────────────────────────────────
+const ControlBtn = ({ active, onClick, title, icon, danger }) => (
+  <button
+    className={`btn-icon ${danger ? 'danger' : active ? 'active' : ''}`}
+    onClick={onClick}
+    title={title}
+    style={{ cursor: 'pointer' }}
+  >
+    {icon}
+  </button>
+);
+
+// ── Video Tile ────────────────────────────────────────────────
+const VideoTile = ({ stream, userName, isLocal, muted, isHost }) => {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -638,23 +755,19 @@ const VideoTile = ({ stream, userName, isLocal, muted }) => {
   }, [stream]);
 
   return (
-    <div className="video-container" style={{
-      aspectRatio: '16/9',
-      maxHeight: '100%',
-    }}>
+    <div className="video-container" style={{ aspectRatio: '16/9', maxHeight: '100%', position: 'relative' }}>
       <video
         ref={videoRef}
         autoPlay
         muted={muted}
         playsInline
         style={{
-          width: '100%',
-          height: '100%',
-          objectFit: 'cover',
+          width: '100%', height: '100%', objectFit: 'cover',
           transform: isLocal ? 'scaleX(-1)' : 'none',
         }}
       />
-      <div className="video-label">
+      <div className="video-label" style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+        {isHost && <span title="Host">👑</span>}
         {userName} {isLocal ? '(You)' : ''}
       </div>
     </div>

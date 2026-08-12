@@ -56,6 +56,19 @@ const setupSocket = (io) => {
       console.log(`👤 ${socket.userName} joined room ${roomId}`);
     });
 
+    // ─── Host: End Meeting for Everyone ───────────────────────
+    socket.on('host-end-meeting', ({ roomId }) => {
+      console.log(`🛑 Host ${socket.userName} ended meeting in room ${roomId}`);
+      // Broadcast to ALL sockets in the room (including sender)
+      io.to(roomId).emit('meeting-ended', {
+        hostName: socket.userName,
+      });
+      // Clean up room tracking
+      if (rooms.has(roomId)) {
+        rooms.delete(roomId);
+      }
+    });
+
     // ─── WebRTC Signaling ──────────────────────────────────────
     socket.on('offer', ({ to, offer }) => {
       io.to(to).emit('offer', {
