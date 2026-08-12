@@ -29,8 +29,8 @@ const upload = multer({
     fileSize: 500 * 1024 * 1024, // 500MB max
   },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['video/webm', 'video/mp4', 'audio/webm', 'audio/wav', 'application/octet-stream'];
-    if (allowedTypes.includes(file.mimetype)) {
+    const mime = (file.mimetype || '').toLowerCase();
+    if (mime.startsWith('video/') || mime.startsWith('audio/') || mime === 'application/octet-stream') {
       cb(null, true);
     } else {
       cb(new Error('Invalid file type. Only video/audio files are allowed.'));

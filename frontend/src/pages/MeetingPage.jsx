@@ -139,22 +139,6 @@ const MeetingPage = () => {
     };
   }, [socket]);
 
-  // ── Handle recording blob upload ─────────────────────────────
-  useEffect(() => {
-    if (recordingBlob && meeting) {
-      const uploadRecording = async () => {
-        try {
-          toast.loading('Uploading recording to storage...', { id: 'upload' });
-          await meetingService.uploadRecording(meeting._id || roomId, recordingBlob);
-          toast.success('Recording saved! Transcribe & Summarize in meeting details.', { id: 'upload' });
-        } catch {
-          toast.error('Failed to upload recording', { id: 'upload' });
-        }
-      };
-      uploadRecording();
-    }
-  }, [recordingBlob]);
-
   // ── Join meeting (stream is already running from preview) ────
   const handleJoin = async () => {
     try {
