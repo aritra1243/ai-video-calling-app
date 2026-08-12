@@ -181,9 +181,31 @@ const MeetingPage = () => {
     }
   };
 
+  // ── Helper to ensure recording is fully saved & uploaded ────────
+  const ensureRecordingUploaded = async () => {
+    if (isRecording || recordingBlob) {
+      try {
+        toast.loading('Saving and uploading meeting recording...', { id: 'upload' });
+        let blob = recordingBlob;
+        if (isRecording) {
+          blob = await stopRecording();
+          socket?.emit('recording-stopped', { roomId });
+        }
+        if (blob) {
+          const targetId = meeting?._id || roomId;
+          await meetingService.uploadRecording(targetId, blob);
+          toast.success('Recording saved successfully!', { id: 'upload' });
+        }
+      } catch (err) {
+        console.error('Recording upload failed:', err);
+        toast.error('Failed to upload recording', { id: 'upload' });
+      }
+    }
+  };
+
   // ── Leave meeting (participant only) ─────────────────────────
-  const handleLeave = () => {
-    if (isRecording) stopRecording();
+  const handleLeave = async () => {
+    await ensureRecordingUploaded();
     stopMedia();
     if (socket) socket.emit('leave-room', { roomId });
     navigate('/dashboard');
@@ -194,12 +216,16 @@ const MeetingPage = () => {
     if (!window.confirm('End this meeting for everyone?')) return;
     setEnding(true);
     try {
-      // Update meeting status in DB first
-      await meetingService.end(meeting._id || roomId);
-      // Broadcast to all participants via socket
+      // 1. Ensure any active/pending recording is fully uploaded
+      await ensureRecordingUploaded();
+
+      // 2. Update meeting status in DB
+      await meetingService.end(meeting?._id || roomId);
+
+      // 3. Broadcast to all participants via socket
       if (socket) socket.emit('host-end-meeting', { roomId });
-      // Stop local media and navigate
-      if (isRecording) stopRecording();
+
+      // 4. Cleanup media & navigate
       stopMedia();
       toast.success('Meeting ended');
       navigate('/dashboard');
@@ -252,10 +278,20 @@ const MeetingPage = () => {
   };
 
   // ── Recording ────────────────────────────────────────────────
-  const handleRecording = () => {
+  const handleRecording = async () => {
     if (isRecording) {
-      stopRecording();
+      toast.loading('Saving recording...', { id: 'upload' });
+      const blob = await stopRecording();
       socket?.emit('recording-stopped', { roomId });
+      if (blob) {
+        try {
+          const targetId = meeting?._id || roomId;
+          await meetingService.uploadRecording(targetId, blob);
+          toast.success('Recording saved successfully!', { id: 'upload' });
+        } catch {
+          toast.error('Failed to upload recording', { id: 'upload' });
+        }
+      }
     } else {
       if (stream) {
         startRecording(stream);
@@ -264,6 +300,7 @@ const MeetingPage = () => {
       }
     }
   };
+
 
   const copyLink = () => {
     navigator.clipboard.writeText(window.location.href);

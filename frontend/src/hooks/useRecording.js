@@ -55,12 +55,22 @@ const useRecording = () => {
   }, []);
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop();
-      setIsRecording(false);
-      clearInterval(timerRef.current);
-    }
-  }, []);
+    return new Promise((resolve) => {
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.onstop = () => {
+          const blob = new Blob(chunksRef.current, { type: mediaRecorderRef.current?.mimeType || 'video/webm' });
+          setRecordingBlob(blob);
+          clearInterval(timerRef.current);
+          resolve(blob);
+        };
+        mediaRecorderRef.current.stop();
+        setIsRecording(false);
+        clearInterval(timerRef.current);
+      } else {
+        resolve(recordingBlob);
+      }
+    });
+  }, [recordingBlob]);
 
   const formatTime = (seconds) => {
     const hrs = Math.floor(seconds / 3600);

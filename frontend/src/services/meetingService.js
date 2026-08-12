@@ -49,7 +49,8 @@ export const meetingService = {
   },
 
   getRecordingUrl: (id) => {
+    const token = localStorage.getItem('token') || '';
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-    return `${API_URL}/meetings/${id}/recording`;
+    return `${API_URL}/meetings/${id}/recording?token=${token}`;
   },
 };
