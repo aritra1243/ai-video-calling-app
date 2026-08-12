@@ -272,8 +272,9 @@ const MeetingPage = () => {
           const targetId = meeting?._id || roomId;
           await meetingService.uploadRecording(targetId, blob);
           toast.success('Recording saved successfully!', { id: 'upload' });
-        } catch {
-          toast.error('Failed to upload recording', { id: 'upload' });
+        } catch (err) {
+          console.error('Recording upload error:', err?.response?.data || err);
+          toast.error(err?.response?.data?.message || 'Failed to upload recording', { id: 'upload' });
         }
       }
     } else {
