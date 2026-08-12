@@ -69,7 +69,13 @@ exports.transcribe = async (req, res, next) => {
 
 // Helper function to call Gemini API with model fallback list
 const getAIResponse = async (genAI, prompt) => {
-  const candidates = ['gemini-flash-latest', 'gemini-pro-latest', 'gemini-2.5-flash-lite', 'gemini-1.5-flash', 'gemini-1.5-pro'];
+  // Only include model names confirmed working on v1beta generateContent endpoint
+  const candidates = [
+    'gemini-flash-latest',
+    'gemini-pro-latest',
+    'gemini-2.5-flash-lite',
+    'gemini-2.5-flash',    // older 2.5 alias some keys still resolve
+  ];
   let lastError;
   for (const modelName of candidates) {
     try {
@@ -77,13 +83,12 @@ const getAIResponse = async (genAI, prompt) => {
       const result = await model.generateContent(prompt);
       return result;
     } catch (err) {
-      console.warn(`Gemini model candidate '${modelName}' failed:`, err.message);
+      console.warn(`Gemini model '${modelName}' failed:`, err.message?.slice(0, 120));
       lastError = err;
     }
   }
-  throw lastError;
+  throw lastError || new Error('All Gemini model candidates failed');
 };
-
 
 // POST /api/meetings/:id/summarize
 exports.summarize = async (req, res, next) => {
