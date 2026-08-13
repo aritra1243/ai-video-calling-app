@@ -14,6 +14,98 @@ const getMeetingQuery = (id) => {
   return { roomId: id };
 };
 
+// Helper function to transcribe audio directly using Gemini API (ultra-fast & multi-language support: Bengali, Hindi, English)
+const transcribeAudioWithGemini = async (filePath, originalFilename) => {
+  if (!config.geminiApiKey) {
+    throw new Error('Gemini API key is not configured in backend');
+  }
+
+  const genAI = new GoogleGenerativeAI(config.geminiApiKey);
+  const fileBuffer = fs.readFileSync(filePath);
+  const base64Audio = fileBuffer.toString('base64');
+
+  const ext = path.extname(originalFilename || filePath).toLowerCase();
+  let mimeType = 'audio/webm';
+  if (ext === '.wav') mimeType = 'audio/wav';
+  else if (ext === '.mp3') mimeType = 'audio/mp3';
+  else if (ext === '.m4a' || ext === '.mp4') mimeType = 'audio/mp4';
+  else if (ext === '.ogg') mimeType = 'audio/ogg';
+
+  const audioPart = {
+    inlineData: {
+      data: base64Audio,
+      mimeType: mimeType,
+    },
+  };
+
+  const prompt = `You are a high-accuracy multilingual audio transcription system.
+Listen to the audio recording carefully. The audio may contain speech in English, Hindi, Bengali (Bangla), Hinglish, or Banglish (or a mix of these languages).
+
+Instructions:
+1. Transcribe the audio accurately verbatim in the spoken languages (use Bengali script for Bengali, Devanagari script for Hindi, and Latin script for English/Hinglish/Banglish).
+2. Segment the transcription into timestamped sections based on audio length.
+
+Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
+{
+  "text": "Full verbatim transcript of the entire audio recording...",
+  "segments": [
+    {
+      "start": 0,
+      "end": 10,
+      "text": "First segment transcript"
+    }
+  ],
+  "language": "detected primary language code (e.g. en, bn, hi, or mixed)"
+}`;
+
+  const candidates = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-1.5-flash',
+    'gemini-flash-latest',
+    'gemini-pro-latest',
+  ];
+
+  let lastError;
+  for (const modelName of candidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent([prompt, audioPart]);
+      const responseText = result.response.text();
+
+      const jsonMatch = responseText.match(/{[\s\S]*}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : responseText);
+      return parsed;
+    } catch (err) {
+      console.warn(`Gemini audio model '${modelName}' failed:`, err.message?.slice(0, 120));
+      lastError = err;
+    }
+  }
+
+  // Fallback simple prompt if JSON parsing / structured format failed
+  for (const modelName of candidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const result = await model.generateContent([
+        'Please transcribe this meeting audio verbatim:',
+        audioPart,
+      ]);
+      const text = result.response.text();
+      if (text && text.trim()) {
+        return {
+          text: text.trim(),
+          segments: [{ start: 0, end: 60, text: text.trim() }],
+          language: 'mixed',
+        };
+      }
+    } catch (err) {
+      lastError = err;
+    }
+  }
+
+  throw lastError || new Error('All Gemini audio transcription models failed');
+};
+
 // POST /api/meetings/:id/transcribe
 exports.transcribe = async (req, res, next) => {
   try {
@@ -32,24 +124,40 @@ exports.transcribe = async (req, res, next) => {
       return res.status(404).json({ message: 'Recording file not found on disk' });
     }
 
-    // Call Python AI service for transcription
-    // Use native fetch + File API (Node 18+)
-    const fileBuffer = fs.readFileSync(recordingPath);
-    const blob = new Blob([fileBuffer]);
-    const formData = new FormData();
-    formData.append('file', blob, meeting.recordingFilename);
+    let transcriptData = null;
 
-    const response = await fetch(`${config.aiServiceUrl}/transcribe`, {
-      method: 'POST',
-      body: formData,
-    });
+    // Try Python AI service first (with short timeout so response is fast)
+    try {
+      const fileBuffer = fs.readFileSync(recordingPath);
+      const blob = new Blob([fileBuffer]);
+      const formData = new FormData();
+      formData.append('file', blob, meeting.recordingFilename);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      return res.status(500).json({ message: `Transcription failed: ${errorText}` });
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
+
+      const response = await fetch(`${config.aiServiceUrl}/transcribe`, {
+        method: 'POST',
+        body: formData,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        transcriptData = await response.json();
+      } else {
+        const errText = await response.text();
+        console.warn(`Python AI service status ${response.status}: ${errText.slice(0, 100)}. Falling back to Gemini...`);
+      }
+    } catch (pyErr) {
+      console.warn('Python AI service unreachable/failed, using fast Gemini audio transcription fallback:', pyErr.message);
     }
 
-    const transcriptData = await response.json();
+    // Fallback to Gemini Multimodal Audio Transcription if Python service failed or timed out
+    if (!transcriptData || !transcriptData.text) {
+      console.log('⚡ Transcribing with Gemini Multimodal Audio API...');
+      transcriptData = await transcribeAudioWithGemini(recordingPath, meeting.recordingFilename);
+    }
 
     meeting.transcript = {
       text: transcriptData.text,
@@ -59,11 +167,14 @@ exports.transcribe = async (req, res, next) => {
     await meeting.save();
 
     res.json({
-      message: 'Transcription completed',
+      message: 'Transcription completed successfully',
       transcript: meeting.transcript,
     });
   } catch (error) {
-    next(error);
+    console.error('Transcription error:', error);
+    res.status(500).json({
+      message: `Transcription failed: ${error.message || 'Internal server error'}`,
+    });
   }
 };
 
@@ -71,10 +182,11 @@ exports.transcribe = async (req, res, next) => {
 const getAIResponse = async (genAI, prompt) => {
   // Only include model names confirmed working on v1beta generateContent endpoint
   const candidates = [
+    'gemini-2.5-flash',
+    'gemini-2.5-flash-lite',
+    'gemini-1.5-flash',
     'gemini-flash-latest',
     'gemini-pro-latest',
-    'gemini-2.5-flash-lite',
-    'gemini-2.5-flash',    // older 2.5 alias some keys still resolve
   ];
   let lastError;
   for (const modelName of candidates) {
@@ -109,19 +221,24 @@ exports.summarize = async (req, res, next) => {
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
 
-    const prompt = `You are a professional meeting assistant. Analyze the following meeting transcript and provide a structured summary.
+    const prompt = `You are an expert AI meeting assistant. Analyze the following meeting transcript and produce a clear, structured meeting summary.
+
+CRITICAL MANDATORY INSTRUCTION:
+- The transcript may contain speech in English, Bengali (Bangla), Hindi, Hinglish, or Banglish (or a mix of these languages).
+- REGARDLESS of the languages spoken in the transcript, you MUST write the ENTIRE summary, title, key points, decisions, and action items STRICTLY IN ENGLISH.
+- Translate all ideas, topics, decisions, and action items into clear, high-quality, professional English.
 
 TRANSCRIPT:
 ${meeting.transcript.text}
 
 Please respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 {
-  "title": "A concise, descriptive title for this meeting",
-  "summary": "A comprehensive 2-3 paragraph summary of the meeting discussion",
-  "keyPoints": ["Key point 1", "Key point 2", "Key point 3"],
-  "decisions": ["Decision 1", "Decision 2"],
+  "title": "A concise, descriptive title for this meeting strictly in English",
+  "summary": "A comprehensive 2-3 paragraph summary of the meeting discussion strictly in English",
+  "keyPoints": ["Key point 1 in English", "Key point 2 in English", "Key point 3 in English"],
+  "decisions": ["Decision 1 in English", "Decision 2 in English"],
   "actionItems": [
-    {"task": "Action item description", "assignee": "Person name or Unassigned", "completed": false}
+    {"task": "Action item description in English", "assignee": "Person name or Unassigned", "completed": false}
   ]
 }`;
 
@@ -220,6 +337,10 @@ exports.askMeeting = async (req, res, next) => {
     const prompt = `You are an AI Meeting Assistant answering questions about a recorded meeting.
 Answer the user's question accurately, concisely, and professionally based strictly on the provided context below.
 
+IMPORTANT INSTRUCTIONS:
+- The transcript or summary may be in English, Bengali, Hindi, or a mix of languages.
+- You MUST ALWAYS write your response STRICTLY IN ENGLISH (unless the user specifically asks for another language). Translate context into English as needed.
+
 MEETING TITLE: ${meeting.title}
 MEETING SUMMARY: ${summaryText}
 
@@ -229,7 +350,7 @@ ${transcriptText}
 USER QUESTION:
 ${question}
 
-Give a clear, helpful response. If the information cannot be found in the meeting context, politely state so.`;
+Give a clear, helpful response strictly in English. If the information cannot be found in the meeting context, politely state so.`;
 
     const result = await getAIResponse(genAI, prompt);
     const answer = result.response.text();

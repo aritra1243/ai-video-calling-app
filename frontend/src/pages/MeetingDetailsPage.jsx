@@ -50,7 +50,7 @@ const MeetingDetailsPage = () => {
   const handleTranscribe = async () => {
     setTranscribing(true);
     try {
-      toast.loading('Transcribing recording... This may take a few minutes.', { id: 'transcribe' });
+      toast.loading('Transcribing recording using AI...', { id: 'transcribe' });
       const data = await aiService.transcribe(meeting._id);
       setMeeting((prev) => ({ ...prev, transcript: data.transcript }));
       toast.success('Transcription complete!', { id: 'transcribe' });

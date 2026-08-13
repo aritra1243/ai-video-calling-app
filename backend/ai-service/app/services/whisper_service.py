@@ -26,8 +26,8 @@ class WhisperService:
         """
         segments_iter, info = self.model.transcribe(
             audio_path,
-            beam_size=5,
-            language=None,  # Auto-detect language
+            beam_size=1,  # Fast greedy decoding for high speed on CPU
+            language=None,  # Auto-detect language (Bengali, Hindi, English, etc.)
             vad_filter=True,  # Voice activity detection to skip silence
             vad_parameters=dict(
                 min_silence_duration_ms=500,
