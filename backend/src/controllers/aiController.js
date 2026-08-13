@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const Meeting = require('../models/Meeting');
 const StandupEntry = require('../models/StandupEntry');
+const User = require('../models/User');
 const config = require('../config/config');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const path = require('path');
@@ -14,8 +15,24 @@ const getMeetingQuery = (id) => {
   return { roomId: id };
 };
 
-// Helper function to transcribe audio directly using Gemini API (ultra-fast & multi-language support: Bengali, Hindi, English)
-const transcribeAudioWithGemini = async (filePath, originalFilename) => {
+// Helper date functions for StandupEntry sync
+function getWeekStart(date) {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+function getDayOfWeek(date) {
+  const d = new Date(date);
+  const day = d.getUTCDay();
+  return day === 0 ? 6 : day - 1;
+}
+
+// Helper function to transcribe audio directly using Gemini API (with speaker name attribution)
+const transcribeAudioWithGemini = async (filePath, originalFilename, participantNames = []) => {
   if (!config.geminiApiKey) {
     throw new Error('Gemini API key is not configured in backend');
   }
@@ -38,21 +55,32 @@ const transcribeAudioWithGemini = async (filePath, originalFilename) => {
     },
   };
 
-  const prompt = `You are a high-accuracy multilingual audio transcription system.
+  const participantListStr = participantNames.length > 0
+    ? `The registered participants in this meeting are: ${participantNames.join(', ')}.`
+    : `Participant names are not explicitly passed. Please infer speaker names (e.g. Abhishek, Priya, Rohan) from voice characteristics, greetings, or self-introductions in the conversation.`;
+
+  const prompt = `You are a high-accuracy multilingual audio transcription and speaker diarization system.
 Listen to the audio recording carefully. The audio may contain speech in English, Hindi, Bengali (Bangla), Hinglish, or Banglish (or a mix of these languages).
+
+${participantListStr}
 
 Instructions:
 1. Transcribe the audio accurately verbatim in the spoken languages (use Bengali script for Bengali, Devanagari script for Hindi, and Latin script for English/Hinglish/Banglish).
 2. Segment the transcription into timestamped sections based on audio length.
+3. Identify and attribute which participant is speaking in each segment. Match spoken voices and statements to participant names provided above, or infer speaker names from dialogue context.
+4. In the full "text" string, prefix each speaker dialogue turn with their speaker name and time stamp, like:
+"[00:00] Abhishek: Hello everyone, yesterday my win was..."
+"[00:15] Priya: Hi team, today my one thing is..."
 
 Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
 {
-  "text": "Full verbatim transcript of the entire audio recording...",
+  "text": "Full verbatim transcript with speaker names prefixed...",
   "segments": [
     {
       "start": 0,
       "end": 10,
-      "text": "First segment transcript"
+      "speaker": "Participant Name",
+      "text": "Segment transcript"
     }
   ],
   "language": "detected primary language code (e.g. en, bn, hi, or mixed)"
@@ -87,14 +115,14 @@ Respond ONLY with valid JSON in this exact format (no markdown, no code fences):
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
       const result = await model.generateContent([
-        'Please transcribe this meeting audio verbatim:',
+        'Please transcribe this meeting audio verbatim and identify speaker names:',
         audioPart,
       ]);
       const text = result.response.text();
       if (text && text.trim()) {
         return {
           text: text.trim(),
-          segments: [{ start: 0, end: 60, text: text.trim() }],
+          segments: [{ start: 0, end: 60, speaker: 'Speaker', text: text.trim() }],
           language: 'mixed',
         };
       }
@@ -126,7 +154,7 @@ exports.transcribe = async (req, res, next) => {
 
     let transcriptData = null;
 
-    // Try Python AI service first (with short timeout so response is fast)
+    // Try Python AI service first
     try {
       const fileBuffer = fs.readFileSync(recordingPath);
       const blob = new Blob([fileBuffer]);
@@ -153,10 +181,12 @@ exports.transcribe = async (req, res, next) => {
       console.warn('Python AI service unreachable/failed, using fast Gemini audio transcription fallback:', pyErr.message);
     }
 
-    // Fallback to Gemini Multimodal Audio Transcription if Python service failed or timed out
+    const participantNames = meeting.participants ? meeting.participants.map(p => p.name).filter(Boolean) : [];
+
+    // Fallback to Gemini Multimodal Audio Transcription with Speaker Diarization
     if (!transcriptData || !transcriptData.text) {
-      console.log('⚡ Transcribing with Gemini Multimodal Audio API...');
-      transcriptData = await transcribeAudioWithGemini(recordingPath, meeting.recordingFilename);
+      console.log('⚡ Transcribing with Gemini Multimodal Audio API + Speaker Diarization...');
+      transcriptData = await transcribeAudioWithGemini(recordingPath, meeting.recordingFilename, participantNames);
     }
 
     meeting.transcript = {
@@ -180,7 +210,6 @@ exports.transcribe = async (req, res, next) => {
 
 // Helper function to call Gemini API with model fallback list
 const getAIResponse = async (genAI, prompt) => {
-  // Only include model names confirmed working on v1beta generateContent endpoint
   const candidates = [
     'gemini-2.5-flash',
     'gemini-2.5-flash-lite',
@@ -221,12 +250,22 @@ exports.summarize = async (req, res, next) => {
 
     const genAI = new GoogleGenerativeAI(config.geminiApiKey);
 
-    const prompt = `You are an expert AI meeting assistant. Analyze the following meeting transcript and produce a clear, structured meeting summary.
+    const participantInfoStr = meeting.participants && meeting.participants.length > 0
+      ? `Registered Meeting Participants:\n` + meeting.participants.map(p => `- Name: ${p.name}, Email: ${p.email || 'N/A'}`).join('\n')
+      : `No registered participant list provided. Use speaker names detected in the transcript.`;
 
-CRITICAL MANDATORY INSTRUCTION:
-- The transcript may contain speech in English, Bengali (Bangla), Hindi, Hinglish, or Banglish (or a mix of these languages).
-- REGARDLESS of the languages spoken in the transcript, you MUST write the ENTIRE summary, title, key points, decisions, and action items STRICTLY IN ENGLISH.
-- Translate all ideas, topics, decisions, and action items into clear, high-quality, professional English.
+    const prompt = `You are an expert AI meeting assistant and leadership growth coach. Analyze the following meeting transcript.
+
+${participantInfoStr}
+
+CRITICAL MANDATORY INSTRUCTIONS:
+1. Write the ENTIRE summary, key points, decisions, action items, and participant standups STRICTLY IN ENGLISH. Translate any Bengali, Hindi, or mixed language speech to high-quality English.
+2. EXTRACT INDIVIDUAL DAILY STANDUP RESPONSES for every individual participant who spoke in the meeting.
+   For each participant, identify:
+   - "win": What they achieved yesterday / their past win.
+   - "oneThing": Their main objective or priority for today ("the one thing").
+   - "challenge": The main challenge, blocker, or difficulty they are facing and working on.
+   If a participant did not explicitly mention one of these 3 parts, write a concise summary of what they shared for that item, or empty string if not discussed.
 
 TRANSCRIPT:
 ${meeting.transcript.text}
@@ -235,10 +274,19 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no code f
 {
   "title": "A concise, descriptive title for this meeting strictly in English",
   "summary": "A comprehensive 2-3 paragraph summary of the meeting discussion strictly in English",
-  "keyPoints": ["Key point 1 in English", "Key point 2 in English", "Key point 3 in English"],
+  "keyPoints": ["Key point 1 in English", "Key point 2 in English"],
   "decisions": ["Decision 1 in English", "Decision 2 in English"],
   "actionItems": [
     {"task": "Action item description in English", "assignee": "Person name or Unassigned", "completed": false}
+  ],
+  "participantStandups": [
+    {
+      "name": "Participant Name (e.g. Abhishek)",
+      "email": "Participant email if known, else empty string",
+      "win": "What they achieved yesterday",
+      "oneThing": "Their main priority for today",
+      "challenge": "Challenge or blocker they face"
+    }
   ]
 }`;
 
@@ -256,7 +304,85 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no code f
         keyPoints: [],
         decisions: [],
         actionItems: [],
+        participantStandups: [],
       };
+    }
+
+    const participantStandups = summaryData.participantStandups || [];
+
+    // AUTO-REFLECT into StandupEntry database records for each user
+    const meetingDate = meeting.startedAt || meeting.createdAt || new Date();
+    const targetDate = new Date(Date.UTC(meetingDate.getUTCFullYear(), meetingDate.getUTCMonth(), meetingDate.getUTCDate()));
+    const weekStart = getWeekStart(targetDate);
+    const dayOfWeek = getDayOfWeek(targetDate);
+
+    const updatedStandupList = [];
+
+    for (const ps of participantStandups) {
+      if (!ps.name && !ps.email) continue;
+
+      let targetUser = null;
+      if (ps.email) {
+        targetUser = await User.findOne({ email: ps.email });
+      }
+      if (!targetUser && ps.name) {
+        targetUser = await User.findOne({ name: new RegExp('^' + ps.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '$', 'i') });
+      }
+      if (!targetUser && ps.name) {
+        // Partial match
+        targetUser = await User.findOne({ name: new RegExp(ps.name.split(' ')[0], 'i') });
+      }
+
+      // Check meeting participants for userId
+      const matchedP = meeting.participants?.find(p =>
+        (ps.name && p.name?.toLowerCase().includes(ps.name.toLowerCase())) ||
+        (ps.email && p.email?.toLowerCase() === ps.email.toLowerCase())
+      );
+
+      const userIdToSave = targetUser ? targetUser._id : (matchedP?.userId || req.user._id);
+      const userNameToSave = targetUser ? targetUser.name : (matchedP?.name || ps.name || 'Participant');
+      const userEmailToSave = targetUser ? targetUser.email : (matchedP?.email || ps.email || '');
+
+      let entryId = null;
+      if (userIdToSave) {
+        const entry = await StandupEntry.findOneAndUpdate(
+          { userId: userIdToSave, date: targetDate },
+          {
+            userId: userIdToSave,
+            userName: userNameToSave,
+            userEmail: userEmailToSave,
+            date: targetDate,
+            weekStart,
+            dayOfWeek,
+            win: ps.win || '',
+            oneThing: ps.oneThing || '',
+            challenge: ps.challenge || '',
+          },
+          { upsert: true, new: true, runValidators: true }
+        );
+        entryId = entry._id;
+
+        // Check if yesterday's oneThing became today's win
+        if (dayOfWeek > 0 && ps.win) {
+          const yesterdayDate = new Date(targetDate);
+          yesterdayDate.setUTCDate(yesterdayDate.getUTCDate() - 1);
+          const yesterday = await StandupEntry.findOne({ userId: userIdToSave, date: yesterdayDate });
+          if (yesterday && yesterday.oneThing) {
+            const achievedOneThing = ps.win.toLowerCase().includes(yesterday.oneThing.toLowerCase().substring(0, 15)) ||
+                                    yesterday.oneThing.toLowerCase().includes(ps.win.toLowerCase().substring(0, 15));
+            await StandupEntry.findByIdAndUpdate(entry._id, { achievedOneThing });
+          }
+        }
+      }
+
+      updatedStandupList.push({
+        userId: userIdToSave,
+        name: userNameToSave,
+        email: userEmailToSave,
+        win: ps.win || '',
+        oneThing: ps.oneThing || '',
+        challenge: ps.challenge || '',
+      });
     }
 
     meeting.summary = {
@@ -264,6 +390,7 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no code f
       keyPoints: summaryData.keyPoints || [],
       decisions: summaryData.decisions || [],
       actionItems: summaryData.actionItems || [],
+      participantStandups: updatedStandupList,
       generatedAt: new Date(),
     };
     if (summaryData.title) {
@@ -272,7 +399,7 @@ Please respond ONLY with valid JSON in this exact format (no markdown, no code f
     await meeting.save();
 
     res.json({
-      message: 'Summary generated successfully',
+      message: 'Summary generated successfully and reflected into user standup records',
       summary: meeting.summary,
       title: meeting.title,
     });

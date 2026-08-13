@@ -405,6 +405,68 @@ const MeetingDetailsPage = () => {
                         </ul>
                       </div>
                     )}
+
+                    {meeting.summary.participantStandups?.length > 0 && (
+                      <div style={{ marginTop: '1.5rem', paddingTop: '1.5rem', borderTop: '1px solid rgba(56,189,248,0.15)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                          <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#10b981', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <HiClipboardList size={18} /> Participant Standups Extracted
+                          </h3>
+                          <span style={{ fontSize: '0.6875rem', background: 'rgba(16,185,129,0.15)', color: '#10b981', border: '1px solid rgba(16,185,129,0.3)', padding: '0.2rem 0.6rem', borderRadius: '0.375rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                            <HiCheckCircle size={12} /> Reflected in Daily Standup Page
+                          </span>
+                        </div>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem' }}>
+                          {meeting.summary.participantStandups.map((ps, idx) => (
+                            <div key={idx} style={{
+                              background: 'rgba(17, 24, 39, 0.7)',
+                              border: '1px solid rgba(56, 189, 248, 0.2)',
+                              borderRadius: '0.75rem',
+                              padding: '1rem',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: '0.75rem',
+                            }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', paddingBottom: '0.625rem', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                                <div style={{
+                                  width: '2.25rem', height: '2.25rem', borderRadius: '50%',
+                                  background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  fontWeight: 700, color: '#fff', fontSize: '0.875rem'
+                                }}>
+                                  {(ps.name || 'P').charAt(0).toUpperCase()}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--color-text-primary)' }}>{ps.name}</div>
+                                  {ps.email && <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>{ps.email}</div>}
+                                </div>
+                              </div>
+
+                              {ps.win && (
+                                <div>
+                                  <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#10b981', letterSpacing: '0.05em', marginBottom: '0.125rem' }}>🏆 YESTERDAY'S WIN</div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{ps.win}</div>
+                                </div>
+                              )}
+
+                              {ps.oneThing && (
+                                <div>
+                                  <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#38bdf8', letterSpacing: '0.05em', marginBottom: '0.125rem' }}>🎯 TODAY'S ONE THING</div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{ps.oneThing}</div>
+                                </div>
+                              )}
+
+                              {ps.challenge && (
+                                <div>
+                                  <div style={{ fontSize: '0.625rem', fontWeight: 700, color: '#f59e0b', letterSpacing: '0.05em', marginBottom: '0.125rem' }}>⚡ CURRENT CHALLENGE</div>
+                                  <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{ps.challenge}</div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center', padding: '2rem 0', color: 'var(--color-text-muted)' }}>
@@ -430,6 +492,7 @@ const MeetingDetailsPage = () => {
                         onClick={() => seekToTimestamp(segment.start)}
                         style={{
                           display: 'flex',
+                          alignItems: 'flex-start',
                           gap: '0.75rem',
                           padding: '0.625rem 0.75rem',
                           borderRadius: 'var(--radius-sm)',
@@ -450,14 +513,31 @@ const MeetingDetailsPage = () => {
                         }}>
                           {formatTimestamp(segment.start)}
                         </span>
-                        <span style={{ fontSize: '0.8125rem', lineHeight: 1.6 }}>
+
+                        {segment.speaker && (
+                          <span style={{
+                            fontSize: '0.6875rem',
+                            fontWeight: 700,
+                            padding: '0.125rem 0.5rem',
+                            borderRadius: '0.375rem',
+                            background: 'rgba(56, 189, 248, 0.15)',
+                            color: '#38bdf8',
+                            border: '1px solid rgba(56, 189, 248, 0.3)',
+                            flexShrink: 0,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {segment.speaker}
+                          </span>
+                        )}
+
+                        <span style={{ fontSize: '0.8125rem', lineHeight: 1.6, flex: 1 }}>
                           {segment.text}
                         </span>
                       </div>
                     ))}
                   </div>
                 ) : meeting.transcript?.text ? (
-                  <div style={{ fontSize: '0.8125rem', lineHeight: 1.8 }}>
+                  <div style={{ fontSize: '0.8125rem', lineHeight: 1.8, whitespace: 'pre-wrap' }}>
                     {meeting.transcript.text}
                   </div>
                 ) : (

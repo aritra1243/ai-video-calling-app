@@ -155,6 +155,26 @@ const DailyStandupPage = () => {
         {todayEntry && !editMode ? (
           /* Submitted view */
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justify: 'space-between',
+              padding: '0.5rem 0.875rem',
+              borderRadius: '0.5rem',
+              background: 'rgba(56, 189, 248, 0.1)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              fontSize: '0.75rem',
+              color: '#38bdf8',
+            }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontWeight: 600 }}>
+                <HiSparkles size={14} color="#38bdf8" />
+                Reflected & Synced from Daily Meeting / Account
+              </span>
+              <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>
+                Auto-updated
+              </span>
+            </div>
+
             <div style={{ padding: '0.875rem 1rem 0.875rem 1.25rem', borderRadius: '0.75rem', background: 'rgba(16,185,129,0.08)', borderLeft: '3px solid #10b981' }}>
               <div style={{ fontSize: '0.6875rem', fontWeight: 700, color: '#10b981', letterSpacing: '0.1em', marginBottom: '0.25rem' }}>🏆 WIN (YESTERDAY)</div>
               <div style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', lineHeight: 1.5 }}>
@@ -175,7 +195,7 @@ const DailyStandupPage = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#10b981', fontSize: '0.8125rem' }}>
               <HiCheckCircle size={16} />
-              Submitted successfully
+              Saved & Active for Today
             </div>
           </div>
         ) : (
