@@ -8,7 +8,7 @@ const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const { login, error, setError } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -31,76 +31,52 @@ const LoginPage = () => {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      padding: '2rem',
-      background: 'var(--color-bg-primary)',
-      position: 'relative',
-      overflow: 'hidden',
+      padding: '1.5rem',
+      background: 'var(--color-canvas-gradient)',
     }}>
-      {/* Background glow effects */}
-      <div style={{
-        position: 'absolute',
-        top: '-20%',
-        left: '-10%',
-        width: '500px',
-        height: '500px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(2, 132, 199, 0.15) 0%, transparent 70%)',
-        filter: 'blur(60px)',
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '-20%',
-        right: '-10%',
-        width: '400px',
-        height: '400px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%)',
-        filter: 'blur(60px)',
-      }} />
-
       <div className="animate-slide-up" style={{
         width: '100%',
         maxWidth: '420px',
-        position: 'relative',
-        zIndex: 1,
       }}>
         {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{
-            width: '4rem',
-            height: '4rem',
+            width: '3.75rem',
+            height: '3.75rem',
             borderRadius: '1rem',
-            background: 'linear-gradient(135deg, #0284c7 0%, #3b82f6 100%)',
+            background: '#2f65f6',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             margin: '0 auto 1rem',
-            boxShadow: '0 0 40px rgba(2, 132, 199, 0.4)',
+            boxShadow: '0 8px 24px rgba(47, 101, 246, 0.35)',
+            color: '#ffffff',
           }}>
-            <HiVideoCamera size={28} color="white" />
+            <HiVideoCamera size={28} />
           </div>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-            Welcome back
+          <h1 style={{ fontSize: '1.625rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.25rem' }}>
+            Video Buddy
           </h1>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-            Sign in to your AI Meeting account
+          <p style={{ color: '#475569', fontSize: '0.875rem' }}>
+            Sign in to your corporate video workspace
           </p>
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="glass-card" style={{
+        <form onSubmit={handleSubmit} className="vb-card" style={{
           padding: '2rem',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.25rem',
+          boxShadow: '0 12px 32px rgba(47, 101, 246, 0.12)',
         }}>
           <div>
             <label style={{
               display: 'block',
               fontSize: '0.8125rem',
-              fontWeight: 500,
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.5rem',
+              fontWeight: 600,
+              color: '#334155',
+              marginBottom: '0.375rem',
             }}>
               Email
             </label>
@@ -110,7 +86,7 @@ const LoginPage = () => {
                 left: '0.75rem',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)',
+                color: '#94a3b8',
               }} size={18} />
               <input
                 type="email"
@@ -128,9 +104,9 @@ const LoginPage = () => {
             <label style={{
               display: 'block',
               fontSize: '0.8125rem',
-              fontWeight: 500,
-              color: 'var(--color-text-secondary)',
-              marginBottom: '0.5rem',
+              fontWeight: 600,
+              color: '#334155',
+              marginBottom: '0.375rem',
             }}>
               Password
             </label>
@@ -140,7 +116,7 @@ const LoginPage = () => {
                 left: '0.75rem',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: 'var(--color-text-muted)',
+                color: '#94a3b8',
               }} size={18} />
               <input
                 type="password"
@@ -159,10 +135,10 @@ const LoginPage = () => {
             type="submit"
             className="btn btn-primary"
             disabled={loading}
-            style={{ width: '100%', marginTop: '0.5rem', padding: '0.875rem' }}
+            style={{ width: '100%', marginTop: '0.5rem', padding: '0.8125rem' }}
           >
             {loading ? (
-              <div className="spinner" style={{ width: '1.25rem', height: '1.25rem', borderWidth: '2px' }} />
+              <div className="spinner" style={{ width: '1.25rem', height: '1.25rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
             ) : (
               'Sign In'
             )}
@@ -171,12 +147,12 @@ const LoginPage = () => {
 
         <p style={{
           textAlign: 'center',
-          marginTop: '1.5rem',
+          marginTop: '1.25rem',
           fontSize: '0.875rem',
-          color: 'var(--color-text-secondary)',
+          color: '#334155',
         }}>
           Don't have an account?{' '}
-          <Link to="/register" style={{ color: 'var(--color-accent-light)', textDecoration: 'none', fontWeight: 600 }}>
+          <Link to="/register" style={{ color: '#2f65f6', textDecoration: 'none', fontWeight: 600 }}>
             Sign up
           </Link>
         </p>
@@ -186,3 +162,4 @@ const LoginPage = () => {
 };
 
 export default LoginPage;
+

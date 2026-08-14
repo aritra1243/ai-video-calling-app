@@ -1,18 +1,32 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Toaster } from 'react-hot-toast';
+import { HiVideoCamera, HiSparkles } from 'react-icons/hi';
+import { useAuth } from '../../context/AuthContext';
 
 const Layout = () => {
+  const { user } = useAuth();
+
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'row' }}>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '1rem',
+      background: 'var(--color-canvas-gradient)',
+    }}>
       <Toaster
         position="top-right"
         toastOptions={{
           style: {
-            background: 'var(--color-bg-card)',
-            color: 'var(--color-text-primary)',
-            border: '1px solid var(--color-border-light)',
-            borderRadius: 'var(--radius-md)',
+            background: '#ffffff',
+            color: '#1e293b',
+            border: '1px solid #e2e8f0',
+            borderRadius: '0.75rem',
+            boxShadow: '0 10px 25px rgba(0, 0, 0, 0.08)',
+            fontSize: '0.875rem',
+            fontWeight: 500,
           },
           success: {
             iconTheme: { primary: '#10b981', secondary: 'white' },
@@ -22,12 +36,68 @@ const Layout = () => {
           },
         }}
       />
-      <Sidebar />
-      <main style={{ flex: 1, minHeight: '100vh', overflowY: 'auto', background: 'var(--color-bg-primary)' }}>
-        <Outlet />
-      </main>
+
+      {/* Main Application Window Frame matching mockups */}
+      <div className="app-window-frame">
+        {/* Video Buddy Top Header Bar */}
+        <header className="video-buddy-header">
+          <Link to="/dashboard" className="video-buddy-logo">
+            <div className="video-buddy-logo-badge">
+              <HiVideoCamera size={18} />
+            </div>
+            <span>Video Buddy</span>
+          </Link>
+
+          {user && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.8125rem',
+                fontWeight: 600,
+                color: '#ffffff',
+                background: 'rgba(255, 255, 255, 0.15)',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '9999px',
+              }}>
+                <div style={{
+                  width: '1.375rem',
+                  height: '1.375rem',
+                  borderRadius: '50%',
+                  background: '#ffffff',
+                  color: '#2f65f6',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.6875rem',
+                  fontWeight: 700,
+                }}>
+                  {user.name?.charAt(0).toUpperCase() || 'U'}
+                </div>
+                <span>{user.name}</span>
+              </div>
+            </div>
+          )}
+        </header>
+
+        {/* Content Body: Sidebar + Main Area */}
+        <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - 120px)', overflow: 'hidden' }}>
+          <Sidebar />
+          <main style={{
+            flex: 1,
+            overflowY: 'auto',
+            background: '#ffffff',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            <Outlet />
+          </main>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default Layout;
+

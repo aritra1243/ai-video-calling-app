@@ -120,11 +120,11 @@ const AISummariesPage = () => {
         {/* Stats row */}
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
           {[
-            { label: 'Ended Meetings', value: endedMeetings.length, color: '#94a3b8' },
-            { label: 'AI Summaries Generated', value: withSummary.length, color: '#818cf8' },
+            { label: 'Ended Meetings', value: endedMeetings.length, color: '#64748b' },
+            { label: 'AI Summaries Generated', value: withSummary.length, color: '#2f65f6' },
             { label: 'Pending Summary', value: withoutSummary.length, color: '#f59e0b' },
           ].map((s, i) => (
-            <div key={i} className="glass-card" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div key={i} className="vb-card" style={{ padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
               <div style={{ fontSize: '1.75rem', fontWeight: 700, color: s.color }}>{s.value}</div>
               <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{s.label}</div>
             </div>
@@ -137,7 +137,7 @@ const AISummariesPage = () => {
           <div className="spinner" />
         </div>
       ) : filteredEndedMeetings.length === 0 ? (
-        <div className="glass-card" style={{ padding: '4rem', textAlign: 'center' }}>
+        <div className="vb-card" style={{ padding: '4rem', textAlign: 'center' }}>
           <HiSparkles size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem', display: 'block' }} />
           <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>
             {selectedDate ? 'No summaries found for selected date' : 'No ended meetings yet'}

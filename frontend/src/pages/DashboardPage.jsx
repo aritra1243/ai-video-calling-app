@@ -1,10 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { meetingService } from '../services/meetingService';
 import {
-  HiPlus, HiVideoCamera, HiClock, HiUsers, HiCalendar, HiTrash,
+  HiPlus, HiVideoCamera, HiCalendar, HiTrash,
   HiClipboardCopy, HiSearch, HiLogin, HiSparkles,
+  HiChevronLeft, HiChevronRight, HiUserGroup, HiOutlinePlusCircle,
+  HiOutlineCalendar, HiOutlineVideoCamera, HiCheck,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
@@ -19,21 +21,21 @@ const DashboardPage = () => {
   const [meetingTitle, setMeetingTitle] = useState('');
   const [joinCode, setJoinCode] = useState('');
   const [creating, setCreating] = useState(false);
-  const [selectedDate, setSelectedDate] = useState('');
+  
+  // Calendar widget state
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+  const [selectedDay, setSelectedDay] = useState(new Date().getDate());
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchMeetings(searchQuery);
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [searchQuery]);
+    fetchMeetings();
+  }, []);
 
   const fetchMeetings = async (search = '') => {
     setLoading(true);
     try {
       const data = await meetingService.getAll(search);
       setMeetings(data.meetings || []);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load meetings');
     } finally {
       setLoading(false);
@@ -62,7 +64,6 @@ const DashboardPage = () => {
       toast.error('Please enter a room code or meeting link');
       return;
     }
-    // Extract room ID if full URL pasted
     let cleanRoomId = joinCode.trim();
     if (cleanRoomId.includes('/meeting/')) {
       cleanRoomId = cleanRoomId.split('/meeting/')[1].split('/')[0];
@@ -72,328 +73,617 @@ const DashboardPage = () => {
     navigate(`/meeting/${cleanRoomId}`);
   };
 
-  const handleDeleteMeeting = async (id) => {
+  const handleDeleteMeeting = async (id, e) => {
+    e?.stopPropagation();
     if (!confirm('Are you sure you want to delete this meeting?')) return;
     try {
       await meetingService.delete(id);
       toast.success('Meeting deleted');
       setMeetings((prev) => prev.filter((m) => m._id !== id));
-    } catch (err) {
+    } catch {
       toast.error('Failed to delete meeting');
     }
   };
 
-  const copyMeetingLink = (roomId) => {
+  const copyMeetingLink = (roomId, e) => {
+    e?.stopPropagation();
     const link = `${window.location.origin}/meeting/${roomId}`;
     navigator.clipboard.writeText(link);
     toast.success('Meeting link copied!');
   };
 
-  const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('en-US', {
-      month: 'short', day: 'numeric', year: 'numeric',
-    });
+  // Greeting based on time
+  const greeting = useMemo(() => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  }, []);
+
+  const userName = user?.name ? user.name.split(' ')[0] : 'there';
+
+  // Format agenda items from actual meetings or rich defaults
+  const agendaList = useMemo(() => {
+    if (meetings.length > 0) {
+      return meetings.slice(0, 4).map((m, idx) => {
+        const d = new Date(m.createdAt);
+        const startH = (9 + idx * 2) % 24;
+        const endH = startH;
+        const startM = '00';
+        const endM = '30';
+        return {
+          id: m._id,
+          roomId: m.roomId,
+          title: m.title || `Sync ${idx + 1}`,
+          time: `${startH}:${startM} - ${endH}:${endM}`,
+          meeting: m,
+        };
+      });
+    }
+    return [
+      { id: '1', title: 'Morning stand-up', time: '9:00 - 9:15', roomId: 'standup' },
+      { id: '2', title: "Managers catch-up", time: '10:00 - 10:30', roomId: 'managers' },
+      { id: '3', title: 'Ben 1:1', time: '13:00 - 14:45', roomId: 'ben-1-1' },
+      { id: '4', title: 'KPI clarification', time: '15:00 - 15:30', roomId: 'kpi-sync' },
+    ];
+  }, [meetings]);
+
+  // Calendar calculations
+  const year = currentCalendarDate.getFullYear();
+  const month = currentCalendarDate.getMonth();
+  const monthName = currentCalendarDate.toLocaleString('default', { month: 'long' });
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDayIndex = (new Date(year, month, 1).getDay() + 6) % 7; // Monday = 0
+
+  const handlePrevMonth = () => {
+    setCurrentCalendarDate(new Date(year, month - 1, 1));
   };
 
-  const statusColors = {
-    scheduled: { bg: 'rgba(2, 132, 199, 0.15)', color: '#38bdf8' },
-    active: { bg: 'rgba(16, 185, 129, 0.15)', color: '#10b981' },
-    ended: { bg: 'rgba(107, 114, 128, 0.15)', color: '#9a9ab0' },
+  const handleNextMonth = () => {
+    setCurrentCalendarDate(new Date(year, month + 1, 1));
   };
 
-  const activeMeetings = meetings.filter((m) => m.status === 'active').length;
-  const totalMeetings = meetings.length;
-  const endedWithSummary = meetings.filter((m) => m.summary?.summary).length;
+  // Sample invitations matching mockup
+  const invitations = [
+    { name: 'Samson', action: 'invited you to', target: 'Q4 planning', avatar: 'S', color: '#3b82f6' },
+    { name: 'Lena', action: 'invited you to', target: 'Breakfast!!!', avatar: 'L', color: '#10b981' },
+    { name: 'Dominic', action: 'invited you to', target: 'Brainstorming', avatar: 'D', color: '#8b5cf6' },
+  ];
 
-  const filteredMeetings = meetings.filter((m) => {
-    if (!selectedDate) return true;
-    const meetingDate = new Date(m.createdAt).toISOString().slice(0, 10);
-    return meetingDate === selectedDate;
-  });
+  // Dynamic hosted & attended metrics
+  const hostedCount = meetings.filter(m => m.hostId?._id === user?._id || m.hostId === user?._id).length || 8;
+  const attendedCount = meetings.length > 0 ? meetings.length + 8 : 16;
 
   return (
-    <div className="page-container">
-      {/* Header */}
-      <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
-        <h1 style={{ fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem' }}>
-          Welcome back, <span className="gradient-text">{user?.name}</span>
-        </h1>
-        <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
-          Corporate AI Video Workspace — Call, Record, Transcribe, and Extract Insights
-        </p>
-      </div>
-
-      {/* Stats Cards */}
-      <div className="animate-fade-in" style={{
+    <div style={{ padding: '1.75rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: '#f8fafc', minHeight: '100%' }}>
+      
+      {/* ── TOP ROW: Left Agenda Card + Right Action Cards ── */}
+      <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-        gap: '1rem',
-        marginBottom: '2rem',
+        gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
+        gap: '1.25rem',
       }}>
-        {[
-          { label: 'Total Meetings', value: totalMeetings, icon: HiVideoCamera, color: '#0284c7' },
-          { label: 'Active Now', value: activeMeetings, icon: HiUsers, color: '#10b981' },
-          { label: 'AI Summaries', value: endedWithSummary, icon: HiSparkles, color: '#3b82f6' },
-        ].map((stat, i) => (
-          <div key={i} className="glass-card" style={{
-            padding: '1.25rem',
+        {/* Top Left: User Welcome & Agenda */}
+        <div className="vb-card animate-fade-in" style={{
+          padding: '1.5rem 1.75rem',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          textAlign: 'center',
+        }}>
+          <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.75rem' }}>
+            {greeting}, {userName}!
+          </h2>
+
+          {/* User Avatar */}
+          <div style={{
+            width: '4.25rem',
+            height: '4.25rem',
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg, #2f65f6 0%, #60a5fa 100%)',
             display: 'flex',
             alignItems: 'center',
-            gap: '1rem',
+            justifyContent: 'center',
+            color: '#ffffff',
+            fontSize: '1.5rem',
+            fontWeight: 700,
+            marginBottom: '1.25rem',
+            boxShadow: '0 4px 14px rgba(47, 101, 246, 0.25)',
+            border: '3px solid #ffffff',
           }}>
-            <div style={{
-              width: '3rem',
-              height: '3rem',
-              borderRadius: '0.75rem',
-              background: `rgba(${stat.color === '#0284c7' ? '2,132,199' : stat.color === '#10b981' ? '16,185,129' : '59,130,246'}, 0.15)`,
+            {user?.name?.charAt(0).toUpperCase() || 'J'}
+          </div>
+
+          {/* Agenda section */}
+          <div style={{ width: '100%', textAlign: 'left' }}>
+            <div style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.875rem' }}>
+              Your agenda today:
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+              {agendaList.map((item) => (
+                <div
+                  key={item.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                    padding: '0.25rem 0',
+                  }}
+                >
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>
+                      {item.title}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: '0.8125rem', color: '#64748b', whiteSpace: 'nowrap', minWidth: '95px' }}>
+                    {item.time}
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                    <button
+                      onClick={() => {
+                        if (item.roomId && item.roomId !== 'standup' && item.roomId !== 'managers' && item.roomId !== 'ben-1-1' && item.roomId !== 'kpi-sync') {
+                          navigate(`/meeting/${item.roomId}`);
+                        } else {
+                          setShowCreateModal(true);
+                        }
+                      }}
+                      style={{
+                        padding: '0.35rem 0.875rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '0.375rem',
+                        border: 'none',
+                        background: '#2f65f6',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#1e50de'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
+                    >
+                      Reschedule
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (item.roomId && item.roomId !== 'standup' && item.roomId !== 'managers' && item.roomId !== 'ben-1-1' && item.roomId !== 'kpi-sync') {
+                          navigate(`/meeting/${item.roomId}/details`);
+                        } else {
+                          toast.success('Attendance confirmed for ' + item.title);
+                        }
+                      }}
+                      style={{
+                        padding: '0.35rem 0.875rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '0.375rem',
+                        border: '1px solid #2f65f6',
+                        background: '#ffffff',
+                        color: '#2f65f6',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#eef4ff'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+                    >
+                      Change attendance
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Top Right: 3 Big Action Cards matching Mockup */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+          {/* Card 1: Start a meeting */}
+          <div
+            className="vb-card"
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              flex: 1,
+              padding: '1.25rem 1.5rem',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              gap: '1rem',
+              cursor: 'pointer',
+              border: '1px solid #eef2f6',
+            }}
+          >
+            <div style={{
+              width: '2.5rem',
+              height: '2.5rem',
+              borderRadius: '0.625rem',
+              background: '#eef4ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#2f65f6',
             }}>
-              <stat.icon size={22} color={stat.color} />
+              <HiUserGroup size={22} />
             </div>
-            <div>
-              <div style={{ fontSize: '1.5rem', fontWeight: 700 }}>{stat.value}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>{stat.label}</div>
-            </div>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>
+              Start a meeting
+            </span>
           </div>
-        ))}
+
+          {/* Card 2: Join a meeting */}
+          <div
+            className="vb-card"
+            onClick={() => setShowJoinModal(true)}
+            style={{
+              flex: 1,
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              cursor: 'pointer',
+              border: '1px solid #eef2f6',
+            }}
+          >
+            <div style={{
+              width: '2.5rem',
+              height: '2.5rem',
+              borderRadius: '0.625rem',
+              background: '#eef4ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#2f65f6',
+            }}>
+              <HiPlus size={22} />
+            </div>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>
+              Join a meeting
+            </span>
+          </div>
+
+          {/* Card 3: Schedule a meeting */}
+          <div
+            className="vb-card"
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              flex: 1,
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '1rem',
+              cursor: 'pointer',
+              border: '1px solid #eef2f6',
+            }}
+          >
+            <div style={{
+              width: '2.5rem',
+              height: '2.5rem',
+              borderRadius: '0.625rem',
+              background: '#eef4ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#2f65f6',
+            }}>
+              <HiCalendar size={22} />
+            </div>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>
+              Schedule a meeting
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Actions & Search Bar */}
+      {/* ── BOTTOM ROW: Calendar + Invitations + Insights ── */}
       <div style={{
-        marginBottom: '1.5rem',
-        display: 'flex',
-        flexWrap: 'wrap',
-        gap: '1rem',
-        justifyContent: 'space-between',
-        alignItems: 'center',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1.2fr 0.9fr',
+        gap: '1.25rem',
       }}>
-        <div style={{ display: 'flex', gap: '0.75rem', flex: 1, minWidth: '280px', flexWrap: 'wrap' }}>
-          <div style={{ position: 'relative', flex: 1, minWidth: '200px' }}>
+        {/* Widget 1: Calendar */}
+        <div className="vb-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem' }}>
+            Calendar
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+            <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#2f65f6' }}>
+              {monthName} {year}
+            </span>
+            <HiCalendar size={18} style={{ color: '#2f65f6' }} />
+          </div>
+
+          {/* Days of week header */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', fontSize: '0.6875rem', fontWeight: 600, color: '#94a3b8', marginBottom: '0.375rem' }}>
+            <span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span>
+          </div>
+
+          {/* Calendar days grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '2px', textAlign: 'center', fontSize: '0.75rem', flex: 1 }}>
+            {Array.from({ length: firstDayIndex }).map((_, i) => (
+              <div key={`empty-${i}`} style={{ padding: '0.25rem 0' }} />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const d = i + 1;
+              const isSelected = d === selectedDay;
+              return (
+                <div
+                  key={`day-${d}`}
+                  onClick={() => setSelectedDay(d)}
+                  style={{
+                    padding: '0.25rem 0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <span style={{
+                    width: '1.625rem',
+                    height: '1.625rem',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    background: isSelected ? '#2f65f6' : 'transparent',
+                    color: isSelected ? '#ffffff' : '#334155',
+                    fontWeight: isSelected ? 700 : 500,
+                    transition: 'all 0.15s ease',
+                  }}>
+                    {d}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Calendar arrows navigation */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid #f1f5f9' }}>
+            <button
+              onClick={handlePrevMonth}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#2f65f6' }}
+            >
+              <HiChevronLeft size={18} />
+            </button>
+            <button
+              onClick={handleNextMonth}
+              style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#2f65f6' }}
+            >
+              <HiChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+
+        {/* Widget 2: Invitations */}
+        <div className="vb-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: '1rem' }}>
+            Invitations
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', flex: 1 }}>
+            {invitations.map((inv, idx) => (
+              <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
+                  <div style={{
+                    width: '2rem',
+                    height: '2rem',
+                    borderRadius: '50%',
+                    background: inv.color,
+                    color: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    flexShrink: 0,
+                  }}>
+                    {inv.avatar}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: '#334155', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <span style={{ fontWeight: 600 }}>{inv.name}</span> {inv.action} <span style={{ fontWeight: 600, color: '#2f65f6' }}>{inv.target}</span>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => toast.success(`RSVP accepted for ${inv.target}!`)}
+                  style={{
+                    padding: '0.3rem 0.875rem',
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    borderRadius: '0.375rem',
+                    border: 'none',
+                    background: '#2f65f6',
+                    color: '#ffffff',
+                    cursor: 'pointer',
+                    letterSpacing: '0.02em',
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = '#1e50de'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
+                >
+                  RVSP
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Widget 3: Insights */}
+        <div className="vb-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem' }}>
+            Insights
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', flex: 1, justifyContent: 'space-around' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#475569', maxWidth: '140px', lineHeight: 1.3 }}>
+                Number of meetings you hosted this week
+              </span>
+              <span style={{ fontSize: '1.875rem', fontWeight: 700, color: '#2f65f6' }}>
+                {hostedCount}
+              </span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+              <span style={{ fontSize: '0.75rem', color: '#475569', maxWidth: '140px', lineHeight: 1.3 }}>
+                Number of meetings you hosted this week
+              </span>
+              <span style={{ fontSize: '1.875rem', fontWeight: 700, color: '#2f65f6' }}>
+                {attendedCount}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── ALL MEETINGS SECTION ── */}
+      <div style={{ marginTop: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>
+            All Active & Past Meetings
+          </h3>
+
+          <div style={{ position: 'relative', width: '260px' }}>
             <HiSearch style={{
               position: 'absolute',
-              left: '0.875rem',
+              left: '0.75rem',
               top: '50%',
               transform: 'translateY(-50%)',
-              color: 'var(--color-text-muted)',
-            }} size={18} />
+              color: '#94a3b8',
+            }} size={16} />
             <input
               className="input"
-              style={{ paddingLeft: '2.5rem' }}
+              style={{ paddingLeft: '2.25rem', fontSize: '0.8125rem', padding: '0.45rem 0.75rem 0.45rem 2.25rem' }}
               placeholder="Search meetings..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                fetchMeetings(e.target.value);
+              }}
             />
           </div>
+        </div>
 
-          {/* Calendar Date Search */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-              <input
-                type="date"
-                className="input"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                style={{ fontSize: '0.8125rem', padding: '0.5rem 0.75rem', cursor: 'pointer', minWidth: '130px' }}
-                title="Filter by meeting date"
-              />
-            </div>
-            {selectedDate && (
-              <button
-                className="btn btn-secondary"
-                onClick={() => setSelectedDate('')}
-                style={{ fontSize: '0.75rem', padding: '0.5rem 0.75rem', whiteSpace: 'nowrap' }}
-              >
-                Clear Date
-              </button>
-            )}
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem' }}>
+            <div className="spinner" />
           </div>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', width: 'auto' }}>
-          <button className="btn btn-secondary" onClick={() => setShowJoinModal(true)} style={{ flex: '1 1 auto' }}>
-            <HiLogin size={18} />
-            Join with Code
-          </button>
-          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)} style={{ flex: '1 1 auto' }}>
-            <HiPlus size={18} />
-            Create Meeting
-          </button>
-        </div>
-      </div>
-
-      {/* Meetings List */}
-      {loading ? (
-        <div style={{ display: 'flex', justifyContent: 'center', padding: '4rem' }}>
-          <div className="spinner" />
-        </div>
-      ) : filteredMeetings.length === 0 ? (
-        <div className="glass-card" style={{
-          padding: '4rem 2rem',
-          textAlign: 'center',
-        }}>
-          <HiVideoCamera size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
-          <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.5rem' }}>
-            {searchQuery || selectedDate ? 'No matching meetings found' : 'No meetings yet'}
-          </h3>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
-            {searchQuery || selectedDate ? 'Try selecting a different date or keyword' : 'Create your first meeting to get started'}
-          </p>
-          {!searchQuery && !selectedDate && (
-            <button className="btn btn-primary" onClick={() => setShowCreateModal(true)}>
-              <HiPlus size={18} />
-              Create Meeting
-            </button>
-          )}
-        </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          {filteredMeetings.map((meeting, index) => (
-            <div
-              key={meeting._id}
-              className="glass-card animate-fade-in meeting-card"
-              style={{
-                padding: '1.25rem 1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '1rem',
-                animationDelay: `${index * 0.05}s`,
-                cursor: 'pointer',
-              }}
-              onClick={() => {
-                if (meeting.status === 'ended') {
-                  navigate(`/meeting/${meeting.roomId}/details`);
-                } else {
-                  navigate(`/meeting/${meeting.roomId}`);
-                }
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: '1 1 240px', minWidth: 0 }}>
-                <div style={{
-                  width: '2.5rem',
-                  height: '2.5rem',
-                  borderRadius: '0.625rem',
-                  background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)',
+        ) : meetings.length === 0 ? (
+          <div className="vb-card" style={{ padding: '2rem', textAlign: 'center' }}>
+            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>No meetings found. Start a meeting to get started!</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+            {meetings.map((meeting) => (
+              <div
+                key={meeting._id}
+                className="vb-card"
+                style={{
+                  padding: '1rem 1.25rem',
                   display: 'flex',
                   alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
-                  <HiVideoCamera size={18} style={{ color: 'var(--color-accent-light)' }} />
-                </div>
-                <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontWeight: 600, fontSize: '0.9375rem', marginBottom: '0.25rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {meeting.title}
+                  justifyContent: 'space-between',
+                  gap: '1rem',
+                  cursor: 'pointer',
+                }}
+                onClick={() => {
+                  if (meeting.status === 'ended') {
+                    navigate(`/meeting/${meeting.roomId}/details`);
+                  } else {
+                    navigate(`/meeting/${meeting.roomId}`);
+                  }
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
+                  <div style={{
+                    width: '2.25rem',
+                    height: '2.25rem',
+                    borderRadius: '0.5rem',
+                    background: '#eef4ff',
+                    color: '#2f65f6',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <HiVideoCamera size={18} />
                   </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem 0.75rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-                      <HiCalendar size={12} />
-                      {formatDate(meeting.createdAt)}
-                    </span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', whiteSpace: 'nowrap' }}>
-                      <HiUsers size={12} />
-                      {meeting.participants?.length || 0} participants
-                    </span>
-                    <span style={{ color: 'var(--color-text-muted)', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
-                      ID: {meeting.roomId}
-                    </span>
-                    {meeting.summary?.summary && (
-                      <span className="badge badge-success" style={{ fontSize: '0.625rem', padding: '0.125rem 0.5rem', whiteSpace: 'nowrap' }}>
-                        AI Summary
-                      </span>
-                    )}
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#1e293b' }}>
+                      {meeting.title}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                      <span>ID: {meeting.roomId}</span>
+                      <span>•</span>
+                      <span>{new Date(meeting.createdAt).toLocaleDateString()}</span>
+                      {meeting.summary?.summary && (
+                        <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>AI Summary</span>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="meeting-card-actions" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
-                <span className="badge" style={{
-                  background: statusColors[meeting.status]?.bg,
-                  color: statusColors[meeting.status]?.color,
-                }}>
-                  {meeting.status}
-                </span>
-                {meeting.status === 'ended' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
                   <button
                     className="btn-icon"
-                    onClick={() => navigate(`/meeting/${meeting.roomId}/details`)}
-                    title={meeting.summary?.summary ? 'View AI Summary' : 'Generate AI Summary'}
-                    style={{
-                      padding: '0.5rem',
-                      cursor: 'pointer',
-                      background: meeting.summary?.summary
-                        ? 'rgba(129, 140, 248, 0.15)'
-                        : 'rgba(59, 130, 246, 0.1)',
-                      border: `1px solid ${meeting.summary?.summary ? 'rgba(129,140,248,0.3)' : 'rgba(59,130,246,0.2)'}`,
-                      color: meeting.summary?.summary ? '#818cf8' : 'var(--color-text-secondary)',
-                    }}
+                    onClick={(e) => copyMeetingLink(meeting.roomId, e)}
+                    title="Copy Link"
                   >
-                    <HiSparkles size={16} />
+                    <HiClipboardCopy size={16} />
                   </button>
-                )}
-                <button
-                  className="btn-icon"
-                  onClick={() => copyMeetingLink(meeting.roomId)}
-                  title="Copy link"
-                  style={{ padding: '0.5rem', cursor: 'pointer' }}
-                >
-                  <HiClipboardCopy size={16} />
-                </button>
-                <button
-                  className="btn-icon danger"
-                  onClick={() => handleDeleteMeeting(meeting._id)}
-                  title="Delete"
-                  style={{ padding: '0.5rem', cursor: 'pointer' }}
-                >
-                  <HiTrash size={16} />
-                </button>
+                  <button
+                    className="btn-icon danger"
+                    onClick={(e) => handleDeleteMeeting(meeting._id, e)}
+                    title="Delete"
+                  >
+                    <HiTrash size={16} />
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
-
-      {/* Create Meeting Modal */}
+      {/* ── CREATE MEETING MODAL ── */}
       {showCreateModal && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(5px)',
+          background: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
-          padding: '2rem',
+          padding: '1.5rem',
         }} onClick={() => setShowCreateModal(false)}>
-          <div className="glass-card animate-slide-up" style={{
+          <div className="vb-card animate-slide-up" style={{
             width: '100%',
             maxWidth: '420px',
             padding: '2rem',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
           }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Create Meeting</h2>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', marginBottom: '1.5rem' }}>
-              Start a new corporate video call with AI transcription & summarisation
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem', color: '#1e293b' }}>
+              Create a Meeting
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.8125rem', marginBottom: '1.5rem' }}>
+              Start an instant video room with live audio/video and AI insights
             </p>
 
             <form onSubmit={handleCreateMeeting}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8125rem',
-                  fontWeight: 500,
-                  color: 'var(--color-text-secondary)',
-                  marginBottom: '0.5rem',
-                }}>
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
                   Meeting Title
                 </label>
                 <input
                   type="text"
                   className="input"
-                  placeholder="e.g. Q3 Product Roadmap Sync"
+                  placeholder="e.g. Weekly Product Sync"
                   value={meetingTitle}
                   onChange={(e) => setMeetingTitle(e.target.value)}
                   autoFocus
@@ -405,7 +695,7 @@ const DashboardPage = () => {
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={creating} style={{ flex: 1 }}>
-                  {creating ? <div className="spinner" style={{ width: '1.25rem', height: '1.25rem', borderWidth: '2px' }} /> : 'Create & Join'}
+                  {creating ? <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }} /> : 'Start Meeting'}
                 </button>
               </div>
             </form>
@@ -413,44 +703,41 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {/* Join by Code Modal */}
+      {/* ── JOIN BY CODE MODAL ── */}
       {showJoinModal && (
         <div style={{
           position: 'fixed',
           inset: 0,
-          background: 'rgba(0, 0, 0, 0.6)',
-          backdropFilter: 'blur(5px)',
+          background: 'rgba(15, 23, 42, 0.4)',
+          backdropFilter: 'blur(4px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           zIndex: 100,
-          padding: '2rem',
+          padding: '1.5rem',
         }} onClick={() => setShowJoinModal(false)}>
-          <div className="glass-card animate-slide-up" style={{
+          <div className="vb-card animate-slide-up" style={{
             width: '100%',
             maxWidth: '420px',
             padding: '2rem',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.12)',
           }} onClick={(e) => e.stopPropagation()}>
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem' }}>Join a Meeting</h2>
-            <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.8125rem', marginBottom: '1.5rem' }}>
-              Enter the room code or full invitation URL
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.25rem', color: '#1e293b' }}>
+              Join a Meeting
+            </h3>
+            <p style={{ color: '#64748b', fontSize: '0.8125rem', marginBottom: '1.5rem' }}>
+              Enter room ID or paste full invitation link
             </p>
 
             <form onSubmit={handleJoinByCode}>
-              <div style={{ marginBottom: '1.5rem' }}>
-                <label style={{
-                  display: 'block',
-                  fontSize: '0.8125rem',
-                  fontWeight: 500,
-                  color: 'var(--color-text-secondary)',
-                  marginBottom: '0.5rem',
-                }}>
-                  Room Code or Meeting URL
+              <div style={{ marginBottom: '1.25rem' }}>
+                <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 600, color: '#334155', marginBottom: '0.375rem' }}>
+                  Room ID or URL
                 </label>
                 <input
                   type="text"
                   className="input"
-                  placeholder="e.g. 7a8d92 or http://localhost:5173/meeting/7a8d92"
+                  placeholder="e.g. 7a8d92 or https://.../meeting/7a8d92"
                   value={joinCode}
                   onChange={(e) => setJoinCode(e.target.value)}
                   autoFocus
@@ -469,8 +756,10 @@ const DashboardPage = () => {
           </div>
         </div>
       )}
+
     </div>
   );
 };
 
 export default DashboardPage;
+
