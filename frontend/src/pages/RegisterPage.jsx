@@ -64,7 +64,7 @@ const RegisterPage = () => {
             Get Started
           </h1>
           <p style={{ color: '#475569', fontSize: '0.875rem' }}>
-            Create your Video Buddy account
+            Create your Meeting AI account
           </p>
         </div>
 

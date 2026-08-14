@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* Color Palette - Video Buddy Royal Blue & Clean Modern Theme */
+  /* Color Palette - Meeting AI Royal Blue & Clean Modern Theme */
   --color-canvas-bg: #f8fafc;
   --color-canvas-gradient: #f8fafc;
   
@@ -196,7 +196,32 @@ body {
 }
 
 
-/* ─── Video Buddy Header Bar ──────────────────────────────── */
+/* ─── Mobile Hamburger Button ─────────────────────────────── */
+.mobile-hamburger-btn {
+  display: none;
+  background: rgba(255, 255, 255, 0.18);
+  border: none;
+  color: #ffffff;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.mobile-hamburger-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+}
+
+@media (max-width: 768px) {
+  .mobile-hamburger-btn {
+    display: flex !important;
+  }
+}
+
+/* ─── Meeting AI Header Bar ──────────────────────────────── */
 .video-buddy-header {
   background: #2f65f6;
   height: 58px;

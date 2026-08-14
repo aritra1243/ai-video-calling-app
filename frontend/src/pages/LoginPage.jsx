@@ -55,10 +55,10 @@ const LoginPage = () => {
             <HiVideoCamera size={28} />
           </div>
           <h1 style={{ fontSize: '1.625rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.25rem' }}>
-            Video Buddy
+            Meeting AI
           </h1>
           <p style={{ color: '#475569', fontSize: '0.875rem' }}>
-            Sign in to your corporate video workspace
+            Sign in to your Meeting AI workspace
           </p>
         </div>
 

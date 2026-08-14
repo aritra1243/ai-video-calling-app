@@ -41,25 +41,13 @@ const Layout = () => {
 
       {/* Main Application Window Frame matching mockups */}
       <div className="app-window-frame">
-        {/* Video Buddy Top Header Bar */}
+        {/* Meeting AI Top Header Bar */}
         <header className="video-buddy-header" style={{ position: 'relative' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            {/* Mobile Hamburger Toggle Button */}
+            {/* Mobile Hamburger Toggle Button - only visible on mobile <= 768px */}
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="md:hidden"
-              style={{
-                background: 'rgba(255, 255, 255, 0.18)',
-                border: 'none',
-                color: '#ffffff',
-                width: '2.25rem',
-                height: '2.25rem',
-                borderRadius: '0.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-              }}
+              className="mobile-hamburger-btn"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <HiX size={20} /> : <HiMenu size={20} />}
@@ -69,7 +57,7 @@ const Layout = () => {
               <div className="video-buddy-logo-badge">
                 <HiVideoCamera size={18} />
               </div>
-              <span>Video Buddy</span>
+              <span>Meeting AI</span>
             </Link>
           </div>
 

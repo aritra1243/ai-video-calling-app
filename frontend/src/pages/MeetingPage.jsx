@@ -90,7 +90,7 @@ const MeetingPage = () => {
           // ignore chat load error
         }
       } catch {
-        setMeeting({ roomId, title: 'Video Buddy Session' });
+        setMeeting({ roomId, title: 'Meeting AI Session' });
       } finally {
         setLoading(false);
       }
@@ -385,7 +385,7 @@ const MeetingPage = () => {
               <div className="video-buddy-logo-badge">
                 <HiVideoCamera size={18} />
               </div>
-              <span>Video Buddy</span>
+              <span>Meeting AI</span>
             </Link>
             <span style={{ fontSize: '0.8125rem', opacity: 0.9 }}>
               Room: <span style={{ fontFamily: 'monospace', fontWeight: 600 }}>{roomId}</span>
@@ -531,13 +531,13 @@ const MeetingPage = () => {
         flexDirection: 'column',
       }}>
         
-        {/* ── 1. Top Video Buddy Header ── */}
+        {/* ── 1. Top Meeting AI Header ── */}
         <header className="video-buddy-header" style={{ flexWrap: 'wrap', height: 'auto', minHeight: '58px', padding: '0.5rem 1rem', gap: '0.5rem' }}>
           <Link to="/dashboard" className="video-buddy-logo">
             <div className="video-buddy-logo-badge">
               <HiVideoCamera size={18} />
             </div>
-            <span>Video Buddy</span>
+            <span>Meeting AI</span>
           </Link>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
