@@ -10,6 +10,7 @@ import MeetingDetailsPage from './pages/MeetingDetailsPage';
 import AISummariesPage from './pages/AISummariesPage';
 import DailyStandupPage from './pages/DailyStandupPage';
 import WeeklyReportPage from './pages/WeeklyReportPage';
+import ContactsPage from './pages/ContactsPage';
 
 // Protected Route wrapper
 const ProtectedRoute = ({ children }) => {
@@ -80,6 +81,7 @@ function App() {
               <ProtectedRoute><Layout /></ProtectedRoute>
             }>
               <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/contacts" element={<ContactsPage />} />
               <Route path="/ai-summaries" element={<AISummariesPage />} />
               <Route path="/daily-standup" element={<DailyStandupPage />} />
               <Route path="/weekly-report" element={<WeeklyReportPage />} />

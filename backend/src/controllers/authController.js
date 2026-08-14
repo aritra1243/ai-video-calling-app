@@ -83,8 +83,29 @@ exports.getMe = async (req, res, next) => {
   }
 };
 
+// GET /api/auth/users - fetch real registered users
+exports.getUsers = async (req, res, next) => {
+  try {
+    const { search } = req.query;
+    let query = {};
+    if (search) {
+      query = {
+        $or: [
+          { name: { $regex: search, $options: 'i' } },
+          { email: { $regex: search, $options: 'i' } }
+        ]
+      };
+    }
+    const users = await User.find(query).select('name email avatar createdAt updatedAt').sort({ name: 1 });
+    res.json({ users });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // POST /api/auth/logout
 exports.logout = async (req, res) => {
   // JWT is stateless — logout is handled client-side by removing the token
   res.json({ message: 'Logged out successfully' });
 };
+

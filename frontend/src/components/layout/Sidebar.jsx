@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import {
   HiHome,
-  HiCalendar,
+  HiIdentification,
   HiSparkles,
   HiClipboardList,
   HiChartBar,
@@ -18,10 +18,10 @@ const NAV_ITEMS = [
     to: '/dashboard',
   },
   {
-    id: 'calendar',
-    label: 'Calendar',
-    icon: HiCalendar,
-    to: '/dashboard',
+    id: 'contacts',
+    label: 'Contacts',
+    icon: HiIdentification,
+    to: '/contacts',
   },
   {
     id: 'recording',
