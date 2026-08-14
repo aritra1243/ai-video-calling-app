@@ -108,14 +108,94 @@ body {
   }
 }
 
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .app-window-frame {
     margin: 0;
     border-radius: 0;
     min-height: 100vh;
     border: none;
+    box-shadow: none;
+  }
+  
+  .layout-outer-wrapper {
+    padding: 0 !important;
   }
 }
+
+/* ─── Responsive Grid Utilities ───────────────────────────── */
+.dashboard-top-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.dashboard-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 0.9fr;
+  gap: 1.25rem;
+}
+
+.contacts-grid {
+  display: grid;
+  grid-template-columns: minmax(260px, 320px) 1fr;
+  gap: 2.5rem;
+  align-items: start;
+}
+
+.summaries-grid {
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  gap: 1.5rem;
+}
+
+.meeting-control-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.5rem;
+  max-width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-top-grid {
+    grid-template-columns: 1fr;
+  }
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  .contacts-grid {
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-top-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .dashboard-bottom-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .contacts-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  .summaries-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  .hide-on-mobile {
+    display: none !important;
+  }
+  .mobile-full-width {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+}
+
 
 /* ─── Video Buddy Header Bar ──────────────────────────────── */
 .video-buddy-header {

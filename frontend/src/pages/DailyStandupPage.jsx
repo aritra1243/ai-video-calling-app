@@ -87,7 +87,7 @@ const DailyStandupPage = () => {
   });
 
   return (
-    <div className="page-container" style={{ maxWidth: '960px', padding: '1.75rem 2rem' }}>
+    <div className="page-container p-4 sm:p-6 md:p-8" style={{ maxWidth: '960px', width: '100%' }}>
       {/* Page Header */}
       <div className="animate-fade-in" style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>

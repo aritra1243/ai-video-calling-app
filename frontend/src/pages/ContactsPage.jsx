@@ -131,7 +131,7 @@ const ContactsPage = () => {
   };
 
   return (
-    <div style={{ padding: '1.5rem 2rem', maxWidth: '1200px', margin: '0 auto' }}>
+    <div className="p-4 sm:p-6 md:p-8" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
       
       {/* ── Top Filters Row matching the design ── */}
       <div style={{
@@ -142,11 +142,12 @@ const ContactsPage = () => {
         flexWrap: 'wrap',
       }}>
         {/* Contact type Dropdown */}
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', flex: '1 1 140px' }}>
           <select
             value={contactType}
             onChange={(e) => setContactType(e.target.value)}
             style={{
+              width: '100%',
               padding: '0.45rem 2rem 0.45rem 0.875rem',
               fontSize: '0.8125rem',
               fontWeight: 600,
@@ -166,11 +167,12 @@ const ContactsPage = () => {
         </div>
 
         {/* Sort by Dropdown */}
-        <div style={{ position: 'relative' }}>
+        <div style={{ position: 'relative', flex: '1 1 140px' }}>
           <select
             value={sortOrder}
             onChange={(e) => setSortOrder(e.target.value)}
             style={{
+              width: '100%',
               padding: '0.45rem 2rem 0.45rem 0.875rem',
               fontSize: '0.8125rem',
               fontWeight: 600,
@@ -190,7 +192,7 @@ const ContactsPage = () => {
         </div>
 
         {/* Search / Company Directory */}
-        <div style={{ position: 'relative', minWidth: '220px' }}>
+        <div style={{ position: 'relative', flex: '2 1 200px', minWidth: '180px' }}>
           <HiSearch size={15} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
           <input
             type="text"
@@ -211,17 +213,12 @@ const ContactsPage = () => {
         </div>
 
         <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 'auto', fontWeight: 600 }}>
-          {filteredUsers.length} {filteredUsers.length === 1 ? 'member' : 'members'} in directory
+          {filteredUsers.length} {filteredUsers.length === 1 ? 'member' : 'members'}
         </span>
       </div>
 
       {/* ── Main Two-Column Layout (Matching Attached Mockup) ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(260px, 320px) 1fr',
-        gap: '2.5rem',
-        alignItems: 'start',
-      }}>
+      <div className="contacts-grid">
 
         {/* ── Left Column: Contact List ── */}
         <div style={{

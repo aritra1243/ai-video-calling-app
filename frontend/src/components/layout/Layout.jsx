@@ -1,14 +1,16 @@
+import { useState } from 'react';
 import { Outlet, Link } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import { Toaster } from 'react-hot-toast';
-import { HiVideoCamera, HiSparkles } from 'react-icons/hi';
+import { HiVideoCamera, HiMenu, HiX } from 'react-icons/hi';
 import { useAuth } from '../../context/AuthContext';
 
 const Layout = () => {
   const { user } = useAuth();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <div style={{
+    <div className="layout-outer-wrapper" style={{
       minHeight: '100vh',
       display: 'flex',
       alignItems: 'center',
@@ -40,13 +42,36 @@ const Layout = () => {
       {/* Main Application Window Frame matching mockups */}
       <div className="app-window-frame">
         {/* Video Buddy Top Header Bar */}
-        <header className="video-buddy-header">
-          <Link to="/dashboard" className="video-buddy-logo">
-            <div className="video-buddy-logo-badge">
-              <HiVideoCamera size={18} />
-            </div>
-            <span>Video Buddy</span>
-          </Link>
+        <header className="video-buddy-header" style={{ position: 'relative' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {/* Mobile Hamburger Toggle Button */}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="md:hidden"
+              style={{
+                background: 'rgba(255, 255, 255, 0.18)',
+                border: 'none',
+                color: '#ffffff',
+                width: '2.25rem',
+                height: '2.25rem',
+                borderRadius: '0.5rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              aria-label="Toggle menu"
+            >
+              {mobileMenuOpen ? <HiX size={20} /> : <HiMenu size={20} />}
+            </button>
+
+            <Link to="/dashboard" className="video-buddy-logo">
+              <div className="video-buddy-logo-badge">
+                <HiVideoCamera size={18} />
+              </div>
+              <span>Video Buddy</span>
+            </Link>
+          </div>
 
           {user && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -75,21 +100,22 @@ const Layout = () => {
                 }}>
                   {user.name?.charAt(0).toUpperCase() || 'U'}
                 </div>
-                <span>{user.name}</span>
+                <span className="hidden sm:inline">{user.name}</span>
               </div>
             </div>
           )}
         </header>
 
         {/* Content Body: Sidebar + Main Area */}
-        <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - 120px)', overflow: 'hidden' }}>
-          <Sidebar />
+        <div style={{ display: 'flex', flex: 1, minHeight: 'calc(100vh - 120px)', position: 'relative', overflow: 'hidden' }}>
+          <Sidebar mobileOpen={mobileMenuOpen} onClose={() => setMobileMenuOpen(false)} />
           <main style={{
             flex: 1,
             overflowY: 'auto',
             background: '#ffffff',
             display: 'flex',
             flexDirection: 'column',
+            width: '100%',
           }}>
             <Outlet />
           </main>

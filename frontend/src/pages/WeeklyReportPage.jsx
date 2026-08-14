@@ -164,7 +164,7 @@ const WeeklyReportPage = () => {
   };
 
   return (
-    <div className="page-container" style={{ padding: '1.75rem 2rem' }}>
+    <div className="page-container p-4 sm:p-6 md:p-8" style={{ width: '100%' }}>
       {/* Header */}
       <div className="animate-fade-in" style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>

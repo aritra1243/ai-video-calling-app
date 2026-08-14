@@ -531,7 +531,7 @@ const MeetingPage = () => {
       }}>
         
         {/* ── 1. Top Video Buddy Header ── */}
-        <header className="video-buddy-header">
+        <header className="video-buddy-header" style={{ flexWrap: 'wrap', height: 'auto', minHeight: '58px', padding: '0.5rem 1rem', gap: '0.5rem' }}>
           <Link to="/dashboard" className="video-buddy-logo">
             <div className="video-buddy-logo-badge">
               <HiVideoCamera size={18} />
@@ -539,11 +539,11 @@ const MeetingPage = () => {
             <span>Video Buddy</span>
           </Link>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
-            <div style={{ fontSize: '0.8125rem', color: '#ffffff', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+            <div style={{ fontSize: '0.8125rem', color: '#ffffff', opacity: 0.9, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
               <span style={{ fontWeight: 600 }}>{meeting?.title || 'Sync'}</span>
-              <span>•</span>
-              <span style={{ fontFamily: 'monospace' }}>ID: {roomId}</span>
+              <span className="hidden sm:inline">•</span>
+              <span className="hidden sm:inline" style={{ fontFamily: 'monospace' }}>ID: {roomId}</span>
             </div>
 
             {isRecording && (
@@ -569,7 +569,7 @@ const MeetingPage = () => {
                 background: 'rgba(255, 255, 255, 0.2)',
                 border: 'none',
                 color: '#ffffff',
-                padding: '0.35rem 0.75rem',
+                padding: '0.35rem 0.625rem',
                 borderRadius: '0.5rem',
                 fontSize: '0.75rem',
                 fontWeight: 600,
@@ -580,7 +580,7 @@ const MeetingPage = () => {
               }}
             >
               <HiClipboardCopy size={14} />
-              <span>Copy Link</span>
+              <span className="hidden sm:inline">Copy Link</span>
             </button>
           </div>
         </header>
@@ -890,6 +890,22 @@ const MeetingPage = () => {
                   <span>More</span>
                   <HiChevronDown size={14} />
                 </button>
+                <button
+                  onClick={() => setChatOpen(false)}
+                  style={{
+                    marginLeft: 'auto',
+                    background: 'none',
+                    border: 'none',
+                    color: '#64748b',
+                    cursor: 'pointer',
+                    fontSize: '1.125rem',
+                    lineHeight: 1,
+                    padding: '0.25rem',
+                  }}
+                  title="Close panel"
+                >
+                  ✕
+                </button>
               </div>
 
               {/* Messages Stream */}
@@ -995,15 +1011,16 @@ const MeetingPage = () => {
         <div style={{
           background: '#ffffff',
           borderTop: '1px solid #eef2f6',
-          padding: '0.625rem 1.25rem',
+          padding: '0.625rem 1rem',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
           position: 'relative',
+          overflowX: 'auto',
         }}>
           {/* Main feature buttons container */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'nowrap', minWidth: 'max-content' }}>
             
             {/* 1. Mute */}
             <ToolbarBtn

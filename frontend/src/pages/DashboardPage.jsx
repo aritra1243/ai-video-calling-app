@@ -167,14 +167,10 @@ const DashboardPage = () => {
   };
 
   return (
-    <div style={{ padding: '1.75rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: '#f8fafc', minHeight: '100%' }}>
+    <div className="p-4 sm:p-6 md:p-8" style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', background: '#f8fafc', minHeight: '100%' }}>
       
       {/* ── TOP ROW: Left Agenda Card + Right Action Cards ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'minmax(0, 1.4fr) minmax(0, 1fr)',
-        gap: '1.25rem',
-      }}>
+      <div className="dashboard-top-grid">
         {/* Top Left: User Welcome & Agenda */}
         <div className="vb-card animate-fade-in" style={{
           padding: '1.5rem 1.75rem',
@@ -386,11 +382,7 @@ const DashboardPage = () => {
       </div>
 
       {/* ── BOTTOM ROW: Calendar + Invitations + Insights ── */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1.2fr 0.9fr',
-        gap: '1.25rem',
-      }}>
+      <div className="dashboard-bottom-grid">
         {/* Widget 1: Calendar */}
         <div className="vb-card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column' }}>
           <div style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem' }}>
