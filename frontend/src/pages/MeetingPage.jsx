@@ -32,11 +32,7 @@ const MeetingPage = () => {
   const [notesText, setNotesText] = useState('');
   const [floatingReactions, setFloatingReactions] = useState([]);
   
-  const [messages, setMessages] = useState([
-    { senderId: 'kathy-demo', senderName: 'Kathy', message: 'Outrageous!!! ❤️', time: '09:15', isDemo: true },
-    { senderId: 'ben-demo', senderName: 'Ben', message: 'No way.', time: '09:15', isDemo: true },
-    { senderId: 'doris-demo', senderName: 'Doris', message: "Let's get some work done!!", time: '10:03', isDemo: true },
-  ]);
+  const [messages, setMessages] = useState([]);
   const [messageInput, setMessageInput] = useState('');
   const [loading, setLoading] = useState(true);
   const [ending, setEnding] = useState(false);
@@ -74,6 +70,25 @@ const MeetingPage = () => {
       try {
         const data = await meetingService.getById(roomId);
         setMeeting(data.meeting);
+        
+        // Fetch persisted messages for this specific meeting
+        try {
+          const msgData = await meetingService.getMessages(roomId);
+          if (msgData?.messages && Array.isArray(msgData.messages)) {
+            setMessages(msgData.messages.map((m) => {
+              const d = new Date(m.createdAt || m.timestamp || Date.now());
+              const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+              return {
+                senderId: m.senderId?._id || m.senderId,
+                senderName: m.senderName,
+                message: m.message,
+                time: timeStr,
+              };
+            }));
+          }
+        } catch {
+          // ignore chat load error
+        }
       } catch {
         setMeeting({ roomId, title: 'Video Buddy Session' });
       } finally {
@@ -113,7 +128,10 @@ const MeetingPage = () => {
     if (!socket) return;
 
     const handleChat = (msg) => {
-      const now = new Date();
+      if (msg.senderId && user?._id && msg.senderId.toString() === user._id.toString()) {
+        return;
+      }
+      const now = msg.timestamp ? new Date(msg.timestamp) : new Date();
       const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
       setMessages((prev) => [...prev, { ...msg, time: timeStr }]);
     };
@@ -883,41 +901,48 @@ const MeetingPage = () => {
                 flexDirection: 'column',
                 gap: '0.875rem',
               }}>
-                {messages.map((m, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
-                    {/* User Avatar Circle */}
-                    <div style={{
-                      width: '2rem',
-                      height: '2rem',
-                      borderRadius: '50%',
-                      background: idx % 3 === 0 ? '#3b82f6' : idx % 3 === 1 ? '#10b981' : '#f59e0b',
-                      color: '#ffffff',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '0.75rem',
-                      fontWeight: 700,
-                      flexShrink: 0,
-                    }}>
-                      {m.senderName?.charAt(0).toUpperCase()}
-                    </div>
-
-                    {/* Message Body */}
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
-                        <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e293b' }}>
-                          {m.senderName}
-                        </span>
-                        <span style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
-                          {m.time}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.4, wordBreak: 'break-word' }}>
-                        {m.message}
-                      </div>
-                    </div>
+                {messages.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.8125rem' }}>
+                    <HiChat size={28} style={{ color: '#cbd5e1', margin: '0 auto 0.5rem', display: 'block' }} />
+                    No messages yet in this meeting
                   </div>
-                ))}
+                ) : (
+                  messages.map((m, idx) => (
+                    <div key={idx} style={{ display: 'flex', gap: '0.625rem', alignItems: 'flex-start' }}>
+                      {/* User Avatar Circle */}
+                      <div style={{
+                        width: '2rem',
+                        height: '2rem',
+                        borderRadius: '50%',
+                        background: idx % 3 === 0 ? '#3b82f6' : idx % 3 === 1 ? '#10b981' : '#f59e0b',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}>
+                        {m.senderName?.charAt(0).toUpperCase()}
+                      </div>
+
+                      {/* Message Body */}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.125rem' }}>
+                          <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e293b' }}>
+                            {m.senderName}
+                          </span>
+                          <span style={{ fontSize: '0.6875rem', color: '#94a3b8' }}>
+                            {m.time}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.8125rem', color: '#475569', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                          {m.message}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
                 <div ref={chatEndRef} />
               </div>
 

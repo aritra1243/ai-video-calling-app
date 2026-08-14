@@ -19,6 +19,7 @@ const authRoutes = require('./routes/authRoutes');
 const meetingRoutes = require('./routes/meetingRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const standupRoutes = require('./routes/standupRoutes');
+const invitationRoutes = require('./routes/invitationRoutes');
 
 // Initialize Express
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/standups', standupRoutes);
+app.use('/api/invitations', invitationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
 import { meetingService } from '../services/meetingService';
+import { invitationService } from '../services/invitationService';
 import {
   HiChat,
   HiVideoCamera,
@@ -25,7 +26,7 @@ const ContactsPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sortOrder, setSortOrder] = useState('az'); // 'az' | 'za'
   const [contactType, setContactType] = useState('all'); // 'all' | 'online'
-  const [startingMeeting, setStartingMeeting] = useState(false);
+  const [sendingInvite, setSendingInvite] = useState(false);
 
   // Chat modal state
   const [chatOpen, setChatOpen] = useState(false);
@@ -72,18 +73,18 @@ const ContactsPage = () => {
       });
   }, [users, searchQuery, sortOrder]);
 
-  // Start instant meeting with selected user
-  const handleStartMeeting = async () => {
+  // Send real meeting invitation to selected user
+  const handleInviteMeeting = async () => {
     if (!selectedUser) return;
-    setStartingMeeting(true);
+    setSendingInvite(true);
     try {
-      const meetingTitle = `Call with ${selectedUser.name}`;
-      const data = await meetingService.create({ title: meetingTitle });
-      toast.success(`Starting meeting with ${selectedUser.name}...`);
-      navigate(`/meeting/${data.meeting.roomId}`);
+      const meetingTitle = `Call with ${currentUser?.name || 'Team'}`;
+      await invitationService.create(selectedUser._id, meetingTitle);
+      toast.success(`Meeting invitation sent to ${selectedUser.name}! It will reflect on their dashboard.`);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to start meeting');
-      setStartingMeeting(false);
+      toast.error(err.response?.data?.message || 'Failed to send invitation');
+    } finally {
+      setSendingInvite(false);
     }
   };
 
@@ -416,10 +417,10 @@ const ContactsPage = () => {
                   <span>Start chat</span>
                 </button>
 
-                {/* Start meeting button (Royal Blue pill) */}
+                {/* Invite meeting button (Royal Blue pill) */}
                 <button
-                  onClick={handleStartMeeting}
-                  disabled={startingMeeting}
+                  onClick={handleInviteMeeting}
+                  disabled={sendingInvite}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -438,12 +439,12 @@ const ContactsPage = () => {
                   onMouseEnter={(e) => { e.currentTarget.style.background = '#1d52e0'; }}
                   onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
                 >
-                  {startingMeeting ? (
+                  {sendingInvite ? (
                     <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
                   ) : (
                     <HiVideoCamera size={16} />
                   )}
-                  <span>Start meeting</span>
+                  <span>Invite meeting</span>
                 </button>
               </div>
 

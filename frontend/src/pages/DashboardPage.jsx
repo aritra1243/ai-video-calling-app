@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { meetingService } from '../services/meetingService';
+import { invitationService } from '../services/invitationService';
 import {
   HiPlus, HiVideoCamera, HiCalendar, HiTrash,
   HiClipboardCopy, HiSearch, HiLogin, HiSparkles,
@@ -14,6 +15,7 @@ const DashboardPage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [meetings, setMeetings] = useState([]);
+  const [invitations, setInvitations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -28,6 +30,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     fetchMeetings();
+    fetchInvitations();
   }, []);
 
   const fetchMeetings = async (search = '') => {
@@ -39,6 +42,25 @@ const DashboardPage = () => {
       toast.error('Failed to load meetings');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchInvitations = async () => {
+    try {
+      const data = await invitationService.getMy();
+      setInvitations(data.invitations || []);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleRsvp = async (invitationId, roomId) => {
+    try {
+      await invitationService.rsvp(invitationId, 'accepted');
+      toast.success('Joining meeting...');
+      navigate(`/meeting/${roomId}`);
+    } catch {
+      navigate(`/meeting/${roomId}`);
     }
   };
 
@@ -102,30 +124,31 @@ const DashboardPage = () => {
 
   const userName = user?.name ? user.name.split(' ')[0] : 'there';
 
-  // Format agenda items from actual meetings or rich defaults
+  // Format agenda items purely from real meetings
   const agendaList = useMemo(() => {
-    if (meetings.length > 0) {
-      return meetings.slice(0, 4).map((m, idx) => {
-        const d = new Date(m.createdAt);
-        const startH = (9 + idx * 2) % 24;
-        const endH = startH;
-        const startM = '00';
-        const endM = '30';
-        return {
-          id: m._id,
-          roomId: m.roomId,
-          title: m.title || `Sync ${idx + 1}`,
-          time: `${startH}:${startM} - ${endH}:${endM}`,
-          meeting: m,
-        };
-      });
-    }
-    return [
-      { id: '1', title: 'Morning stand-up', time: '9:00 - 9:15', roomId: 'standup' },
-      { id: '2', title: "Managers catch-up", time: '10:00 - 10:30', roomId: 'managers' },
-      { id: '3', title: 'Ben 1:1', time: '13:00 - 14:45', roomId: 'ben-1-1' },
-      { id: '4', title: 'KPI clarification', time: '15:00 - 15:30', roomId: 'kpi-sync' },
-    ];
+    return meetings.slice(0, 4).map((m, idx) => {
+      const d = new Date(m.createdAt);
+      const startH = String(d.getHours()).padStart(2, '0');
+      const startM = String(d.getMinutes()).padStart(2, '0');
+      const endH = String((d.getHours() + 1) % 24).padStart(2, '0');
+      const endM = startM;
+      return {
+        id: m._id,
+        roomId: m.roomId,
+        title: m.title || `Meeting ${idx + 1}`,
+        time: `${startH}:${startM} - ${endH}:${endM}`,
+        meeting: m,
+      };
+    });
+  }, [meetings]);
+
+  // Real Insights calculations
+  const hostedCount = useMemo(() => {
+    return meetings.filter(m => (m.hostId?._id || m.hostId) === user?._id).length;
+  }, [meetings, user]);
+
+  const attendedCount = useMemo(() => {
+    return meetings.length;
   }, [meetings]);
 
   // Calendar calculations
@@ -142,17 +165,6 @@ const DashboardPage = () => {
   const handleNextMonth = () => {
     setCurrentCalendarDate(new Date(year, month + 1, 1));
   };
-
-  // Sample invitations matching mockup
-  const invitations = [
-    { name: 'Samson', action: 'invited you to', target: 'Q4 planning', avatar: 'S', color: '#3b82f6' },
-    { name: 'Lena', action: 'invited you to', target: 'Breakfast!!!', avatar: 'L', color: '#10b981' },
-    { name: 'Dominic', action: 'invited you to', target: 'Brainstorming', avatar: 'D', color: '#8b5cf6' },
-  ];
-
-  // Dynamic hosted & attended metrics
-  const hostedCount = meetings.filter(m => m.hostId?._id === user?._id || m.hostId === user?._id).length || 8;
-  const attendedCount = meetings.length > 0 ? meetings.length + 8 : 16;
 
   return (
     <div style={{ padding: '1.75rem 2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem', background: '#f8fafc', minHeight: '100%' }}>
@@ -201,80 +213,74 @@ const DashboardPage = () => {
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-              {agendaList.map((item) => (
-                <div
-                  key={item.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem',
-                    padding: '0.25rem 0',
-                  }}
-                >
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>
-                      {item.title}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: '0.8125rem', color: '#64748b', whiteSpace: 'nowrap', minWidth: '95px' }}>
-                    {item.time}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-                    <button
-                      onClick={() => {
-                        if (item.roomId && item.roomId !== 'standup' && item.roomId !== 'managers' && item.roomId !== 'ben-1-1' && item.roomId !== 'kpi-sync') {
-                          navigate(`/meeting/${item.roomId}`);
-                        } else {
-                          setShowCreateModal(true);
-                        }
-                      }}
-                      style={{
-                        padding: '0.35rem 0.875rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        borderRadius: '0.375rem',
-                        border: 'none',
-                        background: '#2f65f6',
-                        color: '#ffffff',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#1e50de'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
-                    >
-                      Reschedule
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (item.roomId && item.roomId !== 'standup' && item.roomId !== 'managers' && item.roomId !== 'ben-1-1' && item.roomId !== 'kpi-sync') {
-                          navigate(`/meeting/${item.roomId}/details`);
-                        } else {
-                          toast.success('Attendance confirmed for ' + item.title);
-                        }
-                      }}
-                      style={{
-                        padding: '0.35rem 0.875rem',
-                        fontSize: '0.75rem',
-                        fontWeight: 600,
-                        borderRadius: '0.375rem',
-                        border: '1px solid #2f65f6',
-                        background: '#ffffff',
-                        color: '#2f65f6',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.background = '#eef4ff'; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
-                    >
-                      Change attendance
-                    </button>
-                  </div>
+              {agendaList.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '1.25rem 0', color: '#64748b', fontSize: '0.8125rem' }}>
+                  No meetings on your agenda today
                 </div>
-              ))}
+              ) : (
+                agendaList.map((item) => (
+                  <div
+                    key={item.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      padding: '0.25rem 0',
+                    }}
+                  >
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>
+                        {item.title}
+                      </span>
+                    </div>
+
+                    <div style={{ fontSize: '0.8125rem', color: '#64748b', whiteSpace: 'nowrap', minWidth: '95px' }}>
+                      {item.time}
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                      <button
+                        onClick={() => navigate(`/meeting/${item.roomId}`)}
+                        style={{
+                          padding: '0.35rem 0.875rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          borderRadius: '0.375rem',
+                          border: 'none',
+                          background: '#2f65f6',
+                          color: '#ffffff',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#1e50de'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
+                      >
+                        Join
+                      </button>
+
+                      <button
+                        onClick={() => copyMeetingLink(item.roomId)}
+                        style={{
+                          padding: '0.35rem 0.875rem',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          borderRadius: '0.375rem',
+                          border: '1px solid #2f65f6',
+                          background: '#ffffff',
+                          color: '#2f65f6',
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onMouseEnter={(e) => { e.currentTarget.style.background = '#eef4ff'; }}
+                        onMouseLeave={(e) => { e.currentTarget.style.background = '#ffffff'; }}
+                      >
+                        Copy Link
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -466,50 +472,60 @@ const DashboardPage = () => {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem', flex: 1 }}>
-            {invitations.map((inv, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
-                  <div style={{
-                    width: '2rem',
-                    height: '2rem',
-                    borderRadius: '50%',
-                    background: inv.color,
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}>
-                    {inv.avatar}
-                  </div>
-                  <div style={{ fontSize: '0.75rem', color: '#334155', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <span style={{ fontWeight: 600 }}>{inv.name}</span> {inv.action} <span style={{ fontWeight: 600, color: '#2f65f6' }}>{inv.target}</span>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => toast.success(`RSVP accepted for ${inv.target}!`)}
-                  style={{
-                    padding: '0.3rem 0.875rem',
-                    fontSize: '0.6875rem',
-                    fontWeight: 700,
-                    borderRadius: '0.375rem',
-                    border: 'none',
-                    background: '#2f65f6',
-                    color: '#ffffff',
-                    cursor: 'pointer',
-                    letterSpacing: '0.02em',
-                    flexShrink: 0,
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#1e50de'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
-                >
-                  RVSP
-                </button>
+            {invitations.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '1.5rem 0', color: '#94a3b8', fontSize: '0.8125rem' }}>
+                No pending invitations
               </div>
-            ))}
+            ) : (
+              invitations.map((inv) => {
+                const inviterName = inv.inviterId?.name || 'A teammate';
+                const avatarInitial = inviterName.charAt(0).toUpperCase();
+                return (
+                  <div key={inv._id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', minWidth: 0 }}>
+                      <div style={{
+                        width: '2rem',
+                        height: '2rem',
+                        borderRadius: '50%',
+                        background: '#2f65f6',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        flexShrink: 0,
+                      }}>
+                        {avatarInitial}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#334155', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <span style={{ fontWeight: 600 }}>{inviterName}</span> invited you to <span style={{ fontWeight: 600, color: '#2f65f6' }}>{inv.meetingTitle || 'Meeting'}</span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleRsvp(inv._id, inv.roomId)}
+                      style={{
+                        padding: '0.3rem 0.875rem',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        borderRadius: '0.375rem',
+                        border: 'none',
+                        background: '#2f65f6',
+                        color: '#ffffff',
+                        cursor: 'pointer',
+                        letterSpacing: '0.02em',
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.background = '#1e50de'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
+                    >
+                      RSVP
+                    </button>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 
@@ -531,7 +547,7 @@ const DashboardPage = () => {
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem' }}>
               <span style={{ fontSize: '0.75rem', color: '#475569', maxWidth: '140px', lineHeight: 1.3 }}>
-                Number of meetings you hosted this week
+                Number of meetings you attended this week
               </span>
               <span style={{ fontSize: '1.875rem', fontWeight: 700, color: '#2f65f6' }}>
                 {attendedCount}

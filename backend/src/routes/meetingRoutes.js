@@ -10,6 +10,7 @@ router.use(authMiddleware);
 router.post('/', meetingController.createMeeting);
 router.get('/', meetingController.getMeetings);
 router.get('/:id', meetingController.getMeeting);
+router.get('/:id/messages', meetingController.getMeetingMessages);
 router.delete('/:id', meetingController.deleteMeeting);
 router.patch('/:id/join', meetingController.joinMeeting);
 router.patch('/:id/end', meetingController.endMeeting);

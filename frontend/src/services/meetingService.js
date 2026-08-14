@@ -52,4 +52,10 @@ export const meetingService = {
     const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     return `${API_URL}/meetings/${id}/recording?token=${token}`;
   },
+
+  getMessages: async (id) => {
+    const response = await api.get(`/meetings/${id}/messages`);
+    return response.data;
+  },
 };
+

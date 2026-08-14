@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const mongoose = require('mongoose');
 const Meeting = require('../models/Meeting');
+const Message = require('../models/Message');
 const path = require('path');
 const fs = require('fs');
 
@@ -268,4 +269,23 @@ exports.endMeeting = async (req, res, next) => {
     next(error);
   }
 };
+
+// GET /api/meetings/:id/messages
+exports.getMeetingMessages = async (req, res, next) => {
+  try {
+    const meeting = await Meeting.findOne(getMeetingQuery(req.params.id));
+    if (!meeting) {
+      return res.status(404).json({ message: 'Meeting not found' });
+    }
+
+    const messages = await Message.find({ meetingId: meeting._id })
+      .sort({ createdAt: 1 })
+      .limit(200);
+
+    res.json({ messages });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
