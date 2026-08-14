@@ -634,10 +634,59 @@ const DashboardPage = () => {
                     <div style={{ fontWeight: 600, fontSize: '0.875rem', color: '#1e293b' }}>
                       {meeting.title}
                     </div>
-                    <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#64748b', display: 'flex', gap: '0.625rem', alignItems: 'center', flexWrap: 'wrap', marginTop: '0.125rem' }}>
                       <span>ID: {meeting.roomId}</span>
                       <span>•</span>
                       <span>{new Date(meeting.createdAt).toLocaleDateString()}</span>
+                      
+                      {/* Meeting Status Badge */}
+                      {meeting.status === 'active' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: '#dcfce7',
+                          color: '#15803d',
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.6875rem',
+                          fontWeight: 700,
+                        }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', animation: 'recording-pulse 1.2s infinite' }} />
+                          Active Now
+                        </span>
+                      )}
+                      {meeting.status === 'scheduled' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: '#e0f2fe',
+                          color: '#0369a1',
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.6875rem',
+                          fontWeight: 600,
+                        }}>
+                          Scheduled
+                        </span>
+                      )}
+                      {meeting.status === 'ended' && (
+                        <span style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                          background: '#f1f5f9',
+                          color: '#64748b',
+                          padding: '0.125rem 0.5rem',
+                          borderRadius: '9999px',
+                          fontSize: '0.6875rem',
+                          fontWeight: 600,
+                        }}>
+                          Ended
+                        </span>
+                      )}
+
                       {meeting.summary?.summary && (
                         <span className="badge badge-success" style={{ fontSize: '0.625rem' }}>AI Summary</span>
                       )}

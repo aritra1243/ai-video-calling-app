@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authService } from '../services/authService';
-import { meetingService } from '../services/meetingService';
 import { invitationService } from '../services/invitationService';
 import {
   HiChat,
@@ -10,9 +9,9 @@ import {
   HiChevronDown,
   HiSearch,
   HiMail,
-  HiClock,
-  HiGlobe,
+  HiCheck,
   HiUserGroup,
+  HiSparkles,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
@@ -27,6 +26,10 @@ const ContactsPage = () => {
   const [sortOrder, setSortOrder] = useState('az'); // 'az' | 'za'
   const [contactType, setContactType] = useState('all'); // 'all' | 'online'
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [sendingBulkInvite, setSendingBulkInvite] = useState(false);
+
+  // Multi-select / Tick state
+  const [selectedUserIds, setSelectedUserIds] = useState(new Set());
 
   // Chat modal state
   const [chatOpen, setChatOpen] = useState(false);
@@ -73,18 +76,69 @@ const ContactsPage = () => {
       });
   }, [users, searchQuery, sortOrder]);
 
-  // Send real meeting invitation to selected user
+  // Other users eligible for meeting invitations (excludes oneself)
+  const otherUsers = useMemo(() => {
+    return filteredUsers.filter((u) => u._id !== currentUser?._id);
+  }, [filteredUsers, currentUser]);
+
+  const isAllSelected = otherUsers.length > 0 && otherUsers.every((u) => selectedUserIds.has(u._id));
+
+  // Toggle single user checkbox tick
+  const handleToggleUser = (userId, e) => {
+    e.stopPropagation();
+    setSelectedUserIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  // Toggle select all eligible contacts
+  const handleToggleSelectAll = () => {
+    if (isAllSelected) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(otherUsers.map((u) => u._id)));
+    }
+  };
+
+  // Single invitation send
   const handleInviteMeeting = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || selectedUser._id === currentUser?._id) return;
     setSendingInvite(true);
     try {
-      const meetingTitle = `Call with ${currentUser?.name || 'Team'}`;
+      const meetingTitle = `Meeting with ${currentUser?.name || 'Host'}`;
       await invitationService.create(selectedUser._id, meetingTitle);
       toast.success(`Meeting invitation sent to ${selectedUser.name}! It will reflect on their dashboard.`);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to send invitation');
     } finally {
       setSendingInvite(false);
+    }
+  };
+
+  // Bulk invitation send to all ticked/selected members in a single click
+  const handleBulkInvite = async () => {
+    if (selectedUserIds.size === 0) return;
+    setSendingBulkInvite(true);
+    try {
+      const meetingTitle = `Team Meeting with ${currentUser?.name || 'Host'}`;
+      const invitePromises = Array.from(selectedUserIds).map((inviteeId) =>
+        invitationService.create(inviteeId, meetingTitle)
+      );
+      await Promise.all(invitePromises);
+      toast.success(
+        `Meeting invitation sent to ${selectedUserIds.size} selected member${selectedUserIds.size > 1 ? 's' : ''}!`
+      );
+      setSelectedUserIds(new Set());
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send invitations');
+    } finally {
+      setSendingBulkInvite(false);
     }
   };
 
@@ -103,7 +157,7 @@ const ContactsPage = () => {
   };
 
   const handleStartChat = () => {
-    if (!selectedUser) return;
+    if (!selectedUser || selectedUser._id === currentUser?._id) return;
     setChatOpen(true);
     if (chatMessages.length === 0) {
       setChatMessages([
@@ -133,12 +187,12 @@ const ContactsPage = () => {
   return (
     <div className="p-4 sm:p-6 md:p-8" style={{ maxWidth: '1200px', margin: '0 auto', width: '100%' }}>
       
-      {/* ── Top Filters Row matching the design ── */}
+      {/* ── Top Filters & Search Row ── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         gap: '0.75rem',
-        marginBottom: '1.5rem',
+        marginBottom: '1.25rem',
         flexWrap: 'wrap',
       }}>
         {/* Contact type Dropdown */}
@@ -217,15 +271,81 @@ const ContactsPage = () => {
         </span>
       </div>
 
-      {/* ── Main Two-Column Layout (Matching Attached Mockup) ── */}
+      {/* ── Multi-select Bulk Actions Bar ── */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '0.625rem 1rem',
+        background: selectedUserIds.size > 0 ? '#eef4ff' : '#f8fafc',
+        border: selectedUserIds.size > 0 ? '1px solid #bfdbfe' : '1px solid #eef2f6',
+        borderRadius: '0.625rem',
+        marginBottom: '1rem',
+        transition: 'all 0.2s ease',
+      }}>
+        {/* Select All Checkbox */}
+        <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b', userSelect: 'none' }}>
+          <input
+            type="checkbox"
+            checked={isAllSelected}
+            onChange={handleToggleSelectAll}
+            style={{
+              width: '1rem',
+              height: '1rem',
+              borderRadius: '0.25rem',
+              cursor: 'pointer',
+              accentColor: '#2f65f6',
+            }}
+          />
+          <span>Select all members</span>
+          {selectedUserIds.size > 0 && (
+            <span style={{ color: '#2f65f6', fontSize: '0.75rem', fontWeight: 700 }}>
+              ({selectedUserIds.size} selected)
+            </span>
+          )}
+        </label>
+
+        {/* Single-Click Bulk Send Invitation Button */}
+        {selectedUserIds.size > 0 && (
+          <button
+            onClick={handleBulkInvite}
+            disabled={sendingBulkInvite}
+            className="animate-fade-in"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              background: '#2f65f6',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '0.5rem',
+              padding: '0.45rem 1rem',
+              fontSize: '0.8125rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 4px 12px rgba(47, 101, 246, 0.3)',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            {sendingBulkInvite ? (
+              <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
+            ) : (
+              <HiVideoCamera size={16} />
+            )}
+            <span>Invite Selected ({selectedUserIds.size})</span>
+          </button>
+        )}
+      </div>
+
+      {/* ── Main Two-Column Layout ── */}
       <div className="contacts-grid">
 
-        {/* ── Left Column: Contact List ── */}
+        {/* ── Left Column: Contact List with Checkboxes ── */}
         <div style={{
           display: 'flex',
           flexDirection: 'column',
           gap: '0.375rem',
-          maxHeight: 'calc(100vh - 230px)',
+          maxHeight: 'calc(100vh - 270px)',
           overflowY: 'auto',
           paddingRight: '0.5rem',
         }}>
@@ -242,6 +362,7 @@ const ContactsPage = () => {
             filteredUsers.map((u) => {
               const isSelected = selectedUser?._id === u._id;
               const isSelf = u._id === currentUser?._id;
+              const isChecked = selectedUserIds.has(u._id);
               const color = getAvatarColor(u.name);
 
               return (
@@ -251,20 +372,42 @@ const ContactsPage = () => {
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '0.875rem',
+                    gap: '0.75rem',
                     padding: '0.625rem 0.875rem',
                     borderRadius: '0.625rem',
                     cursor: 'pointer',
                     background: isSelected ? '#edf2fe' : 'transparent',
+                    border: isChecked ? '1px solid #bfdbfe' : '1px solid transparent',
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
                     if (!isSelected) e.currentTarget.style.background = '#f8fafc';
                   }}
                   onMouseLeave={(e) => {
-                    if (!isSelected) e.currentTarget.style.background = 'transparent';
+                    if (!isSelected) e.currentTarget.style.background = isChecked ? '#f0f7ff' : 'transparent';
                   }}
                 >
+                  {/* Checkbox Tick for Other Members */}
+                  {!isSelf ? (
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={(e) => handleToggleUser(u._id, e)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        width: '1rem',
+                        height: '1rem',
+                        borderRadius: '0.25rem',
+                        cursor: 'pointer',
+                        accentColor: '#2f65f6',
+                        flexShrink: 0,
+                      }}
+                      title="Select for meeting invitation"
+                    />
+                  ) : (
+                    <div style={{ width: '1rem', flexShrink: 0 }} />
+                  )}
+
                   {/* User Avatar with Green Online indicator */}
                   <div style={{ position: 'relative', flexShrink: 0 }}>
                     <div style={{
@@ -314,7 +457,7 @@ const ContactsPage = () => {
           )}
         </div>
 
-        {/* ── Right Column: Selected User Profile Card (Matching Image) ── */}
+        {/* ── Right Column: Selected User Profile Card ── */}
         <div>
           {selectedUser ? (
             <div className="vb-card animate-fade-in" style={{
@@ -381,71 +524,92 @@ const ContactsPage = () => {
                 Available now
               </div>
 
-              {/* Action Buttons: [ Start chat ] [ Start meeting ] */}
-              <div style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.75rem',
-                marginBottom: '2rem',
-                width: '100%',
-                justifyContent: 'center',
-              }}>
-                {/* Start chat button (Black pill) */}
-                <button
-                  onClick={handleStartChat}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    background: '#181b22',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    padding: '0.625rem 1.25rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#272c36'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = '#181b22'; }}
-                >
-                  <HiChat size={16} />
-                  <span>Start chat</span>
-                </button>
+              {/* Action Buttons: ONLY FOR CORRESPONDING USERS (EXCLUDES OWN PROFILE) */}
+              {selectedUser._id === currentUser?._id ? (
+                /* Own Profile Note */
+                <div style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: '#eef4ff',
+                  color: '#2f65f6',
+                  padding: '0.5rem 1.25rem',
+                  borderRadius: '9999px',
+                  fontSize: '0.8125rem',
+                  fontWeight: 600,
+                  marginBottom: '1.75rem',
+                  border: '1px solid #bfdbfe',
+                }}>
+                  <HiSparkles size={16} />
+                  <span>Your Personal Account Profile</span>
+                </div>
+              ) : (
+                /* Other Members: Start chat & Invite meeting */
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  marginBottom: '2rem',
+                  width: '100%',
+                  justifyContent: 'center',
+                }}>
+                  {/* Start chat button (Black pill) */}
+                  <button
+                    onClick={handleStartChat}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      background: '#181b22',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      padding: '0.625rem 1.25rem',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#272c36'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#181b22'; }}
+                  >
+                    <HiChat size={16} />
+                    <span>Start chat</span>
+                  </button>
 
-                {/* Invite meeting button (Royal Blue pill) */}
-                <button
-                  onClick={handleInviteMeeting}
-                  disabled={sendingInvite}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    background: '#2f65f6',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '0.5rem',
-                    padding: '0.625rem 1.25rem',
-                    fontSize: '0.8125rem',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    boxShadow: '0 4px 14px rgba(47, 101, 246, 0.35)',
-                  }}
-                  onMouseEnter={(e) => { e.currentTarget.style.background = '#1d52e0'; }}
-                  onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
-                >
-                  {sendingInvite ? (
-                    <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
-                  ) : (
-                    <HiVideoCamera size={16} />
-                  )}
-                  <span>Invite meeting</span>
-                </button>
-              </div>
+                  {/* Invite meeting button (Royal Blue pill) */}
+                  <button
+                    onClick={handleInviteMeeting}
+                    disabled={sendingInvite}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      background: '#2f65f6',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '0.5rem',
+                      padding: '0.625rem 1.25rem',
+                      fontSize: '0.8125rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      boxShadow: '0 4px 14px rgba(47, 101, 246, 0.35)',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.background = '#1d52e0'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.background = '#2f65f6'; }}
+                  >
+                    {sendingInvite ? (
+                      <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
+                    ) : (
+                      <HiVideoCamera size={16} />
+                    )}
+                    <span>Invite meeting</span>
+                  </button>
+                </div>
+              )}
 
-              {/* Details table matching image */}
+              {/* Details table matching design */}
               <div style={{
                 width: '100%',
                 borderTop: '1px solid #f1f5f9',
