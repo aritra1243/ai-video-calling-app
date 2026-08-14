@@ -12,11 +12,11 @@ const Layout = () => {
   return (
     <div className="layout-outer-wrapper" style={{
       minHeight: '100vh',
+      width: '100%',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '1rem',
-      background: 'var(--color-canvas-gradient)',
+      flexDirection: 'column',
+      padding: 0,
+      background: '#ffffff',
     }}>
       <Toaster
         position="top-right"

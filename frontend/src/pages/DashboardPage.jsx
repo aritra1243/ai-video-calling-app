@@ -124,22 +124,32 @@ const DashboardPage = () => {
 
   const userName = user?.name ? user.name.split(' ')[0] : 'there';
 
-  // Format agenda items purely from real meetings
+  // Format agenda items purely from today's active & scheduled meetings (exclude ended)
   const agendaList = useMemo(() => {
-    return meetings.slice(0, 4).map((m, idx) => {
-      const d = new Date(m.createdAt);
-      const startH = String(d.getHours()).padStart(2, '0');
-      const startM = String(d.getMinutes()).padStart(2, '0');
-      const endH = String((d.getHours() + 1) % 24).padStart(2, '0');
-      const endM = startM;
-      return {
-        id: m._id,
-        roomId: m.roomId,
-        title: m.title || `Meeting ${idx + 1}`,
-        time: `${startH}:${startM} - ${endH}:${endM}`,
-        meeting: m,
-      };
-    });
+    const todayStr = new Date().toDateString();
+    return meetings
+      .filter((m) => {
+        // Exclude ended meetings
+        if (m.status === 'ended') return false;
+        // Only include meetings created / scheduled for today
+        const meetingDateStr = new Date(m.createdAt).toDateString();
+        return meetingDateStr === todayStr;
+      })
+      .slice(0, 5)
+      .map((m, idx) => {
+        const d = new Date(m.createdAt);
+        const startH = String(d.getHours()).padStart(2, '0');
+        const startM = String(d.getMinutes()).padStart(2, '0');
+        const endH = String((d.getHours() + 1) % 24).padStart(2, '0');
+        const endM = startM;
+        return {
+          id: m._id,
+          roomId: m.roomId,
+          title: m.title || `Meeting ${idx + 1}`,
+          time: `${startH}:${startM} - ${endH}:${endM}`,
+          meeting: m,
+        };
+      });
   }, [meetings]);
 
   // Real Insights calculations

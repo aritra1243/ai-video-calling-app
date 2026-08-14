@@ -38,12 +38,13 @@ const RegisterPage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1.5rem',
-      background: 'var(--color-canvas-gradient)',
+      background: '#f8fafc',
     }}>
       <div className="animate-slide-up" style={{
         width: '100%',
         maxWidth: '420px',
       }}>
+        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
           <div style={{
             width: '3.75rem',
@@ -156,7 +157,7 @@ const RegisterPage = () => {
                 type="password"
                 className="input"
                 style={{ paddingLeft: '2.5rem' }}
-                placeholder="••••••••"
+                placeholder="At least 6 characters"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -187,11 +188,10 @@ const RegisterPage = () => {
                 type="password"
                 className="input"
                 style={{ paddingLeft: '2.5rem' }}
-                placeholder="••••••••"
+                placeholder="Re-enter password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
-                minLength={6}
               />
             </div>
           </div>
@@ -200,24 +200,20 @@ const RegisterPage = () => {
             type="submit"
             className="btn btn-primary"
             disabled={loading}
-            style={{ width: '100%', marginTop: '0.5rem', padding: '0.8125rem' }}
+            style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }}
           >
-            {loading ? (
-              <div className="spinner" style={{ width: '1.25rem', height: '1.25rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
-            ) : (
-              'Create Account'
-            )}
+            {loading ? <div className="spinner" style={{ width: '1.25rem', height: '1.25rem', borderWidth: '2px' }} /> : 'Create Account'}
           </button>
         </form>
 
         <p style={{
           textAlign: 'center',
-          marginTop: '1.25rem',
+          marginTop: '1.5rem',
           fontSize: '0.875rem',
-          color: '#334155',
+          color: '#475569',
         }}>
           Already have an account?{' '}
-          <Link to="/login" style={{ color: '#2f65f6', textDecoration: 'none', fontWeight: 600 }}>
+          <Link to="/login" style={{ color: '#2f65f6', fontWeight: 600, textDecoration: 'none' }}>
             Sign in
           </Link>
         </p>

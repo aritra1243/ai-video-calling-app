@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
 @theme {
-  /* Color Palette - Video Buddy Royal Blue & Clean Canvas Theme */
-  --color-canvas-bg: #98bbf8;
-  --color-canvas-gradient: linear-gradient(135deg, #8eaef5 0%, #a3c4fc 50%, #88abf2 100%);
+  /* Color Palette - Video Buddy Royal Blue & Clean Modern Theme */
+  --color-canvas-bg: #f8fafc;
+  --color-canvas-gradient: #f8fafc;
   
-  --color-bg-primary: #f4f7fb;
+  --color-bg-primary: #f8fafc;
   --color-bg-secondary: #ffffff;
   --color-bg-card: #ffffff;
   --color-bg-elevated: #f8fafc;
-  --color-bg-glass: rgba(255, 255, 255, 0.92);
+  --color-bg-glass: rgba(255, 255, 255, 0.96);
   
   --color-text-primary: #1e293b;
   --color-text-secondary: #64748b;
@@ -39,10 +39,10 @@
   --gradient-glow: radial-gradient(circle at 50% 50%, rgba(47, 101, 246, 0.15) 0%, transparent 70%);
   
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px rgba(47, 101, 246, 0.08), 0 2px 6px rgba(0, 0, 0, 0.04);
-  --shadow-lg: 0 16px 36px rgba(47, 101, 246, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
-  --shadow-app-frame: 0 20px 50px rgba(25, 60, 150, 0.16), 0 4px 16px rgba(0, 0, 0, 0.06);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.03);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.06), 0 2px 6px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 16px 36px rgba(0, 0, 0, 0.08), 0 4px 12px rgba(0, 0, 0, 0.04);
+  --shadow-app-frame: none;
   --shadow-glow: 0 0 25px rgba(47, 101, 246, 0.25);
   
   /* Border Radius */
@@ -70,8 +70,7 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--color-canvas-gradient);
-  background-attachment: fixed;
+  background: #f8fafc;
   color: var(--color-text-primary);
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -87,16 +86,16 @@ body {
 /* ─── Application Window Container Frame ─────────────────── */
 .app-window-frame {
   width: 100%;
-  max-width: 1360px;
-  min-height: calc(100vh - 2.5rem);
-  margin: 1.25rem auto;
+  max-width: 100%;
+  min-height: 100vh;
+  margin: 0;
   background: var(--color-bg-secondary);
-  border-radius: 1.5rem;
-  box-shadow: var(--shadow-app-frame);
+  border-radius: 0;
+  box-shadow: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.6);
+  border: none;
   transition: all 0.3s ease;
 }
 

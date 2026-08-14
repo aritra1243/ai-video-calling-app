@@ -371,13 +371,14 @@ const MeetingPage = () => {
     return (
       <div style={{
         minHeight: '100vh',
+        width: '100%',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
         padding: '1.5rem',
-        background: 'var(--color-canvas-gradient)',
+        background: '#f8fafc',
       }}>
-        <div className="app-window-frame" style={{ maxWidth: '640px', minHeight: 'auto' }}>
+        <div className="vb-card" style={{ width: '100%', maxWidth: '600px', overflow: 'hidden' }}>
           {/* Header */}
           <header className="video-buddy-header">
             <Link to="/dashboard" className="video-buddy-logo">
@@ -495,11 +496,11 @@ const MeetingPage = () => {
   return (
     <div style={{
       minHeight: '100vh',
+      width: '100%',
       display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '0.75rem',
-      background: 'var(--color-canvas-gradient)',
+      flexDirection: 'column',
+      padding: 0,
+      background: '#ffffff',
       position: 'relative',
       overflow: 'hidden',
     }}>
@@ -522,10 +523,10 @@ const MeetingPage = () => {
       ))}
 
       {/* Main Application Window Frame */}
-      <div className="app-window-frame" style={{
-        maxWidth: '1380px',
-        height: 'calc(100vh - 1.5rem)',
-        minHeight: '620px',
+      <div style={{
+        width: '100%',
+        height: '100vh',
+        minHeight: '100vh',
         display: 'flex',
         flexDirection: 'column',
       }}>

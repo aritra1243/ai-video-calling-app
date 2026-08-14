@@ -32,7 +32,7 @@ const LoginPage = () => {
       alignItems: 'center',
       justifyContent: 'center',
       padding: '1.5rem',
-      background: 'var(--color-canvas-gradient)',
+      background: '#f8fafc',
     }}>
       <div className="animate-slide-up" style={{
         width: '100%',
