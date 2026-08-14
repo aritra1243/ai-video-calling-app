@@ -6,11 +6,15 @@ const config = require('./config');
 
 const connectDB = async () => {
   try {
-    const conn = await mongoose.connect(config.mongoUri);
+    const conn = await mongoose.connect(config.mongoUri, {
+      serverSelectionTimeoutMS: 10000,
+    });
     console.log(`✅ MongoDB connected: ${conn.connection.host}`);
+    return conn;
   } catch (error) {
     console.error(`❌ MongoDB connection error: ${error.message}`);
-    process.exit(1);
+    console.log('🔄 Will retry connecting to MongoDB in 5 seconds...');
+    setTimeout(connectDB, 5000);
   }
 };
 

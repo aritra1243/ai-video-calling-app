@@ -4,14 +4,14 @@ const {
   getDirectMessages,
   sendDirectMessage,
 } = require('../controllers/directMessageController');
-const { protect } = require('../middleware/authMiddleware');
+const authMiddleware = require('../middleware/authMiddleware');
 
-router.use(protect);
+router.use(authMiddleware);
 
-router.route('/direct')
-  .post(sendDirectMessage);
+router.post('/direct', sendDirectMessage);
+router.get('/direct/:userId', getDirectMessages);
 
-router.route('/direct/:userId')
-  .get(getDirectMessages);
+router.post('/', sendDirectMessage);
+router.get('/:userId', getDirectMessages);
 
 module.exports = router;
