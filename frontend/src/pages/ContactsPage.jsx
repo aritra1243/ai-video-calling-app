@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useSocket } from '../context/SocketContext';
 import { authService } from '../services/authService';
 import { invitationService } from '../services/invitationService';
+import { messageService } from '../services/messageService';
 import {
   HiChat,
   HiVideoCamera,
@@ -12,11 +14,13 @@ import {
   HiCheck,
   HiUserGroup,
   HiSparkles,
+  HiPaperAirplane,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const ContactsPage = () => {
   const { user: currentUser } = useAuth();
+  const { socket } = useSocket();
   const navigate = useNavigate();
 
   const [users, setUsers] = useState([]);
@@ -31,10 +35,12 @@ const ContactsPage = () => {
   // Multi-select / Tick state
   const [selectedUserIds, setSelectedUserIds] = useState(new Set());
 
-  // Chat modal state
+  // Real Direct Chat modal state
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const messagesEndRef = useRef(null);
 
   useEffect(() => {
     fetchUsers();
@@ -47,7 +53,7 @@ const ContactsPage = () => {
       const fetched = data.users || [];
       setUsers(fetched);
       if (fetched.length > 0) {
-        // Select first user who is not current user, or first user
+        // Select first other user, or first user
         const first = fetched.find(u => u._id !== currentUser?._id) || fetched[0];
         setSelectedUser(first);
       }
@@ -142,6 +148,114 @@ const ContactsPage = () => {
     }
   };
 
+  // Auto-scroll chat to bottom
+  useEffect(() => {
+    if (chatOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatMessages, chatOpen]);
+
+  // Load real conversation history when opening chat
+  const handleStartChat = async () => {
+    if (!selectedUser || selectedUser._id === currentUser?._id) return;
+    setChatOpen(true);
+    setChatLoading(true);
+    try {
+      const res = await messageService.getDirectMessages(selectedUser._id);
+      if (res?.messages && Array.isArray(res.messages)) {
+        setChatMessages(
+          res.messages.map((m) => ({
+            _id: m._id,
+            senderId: m.senderId?._id || m.senderId,
+            senderName: m.senderName,
+            text: m.message,
+            time: new Date(m.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            isMe: (m.senderId?._id || m.senderId) === currentUser?._id,
+          }))
+        );
+      }
+    } catch {
+      toast.error('Failed to load conversation');
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  // Listen for live incoming Direct Messages over Socket.IO
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleDirectMessage = (msg) => {
+      const isFromCurrentChat =
+        selectedUser &&
+        ((msg.senderId === selectedUser._id && msg.receiverId === currentUser?._id) ||
+          (msg.senderId === currentUser?._id && msg.receiverId === selectedUser._id));
+
+      if (isFromCurrentChat) {
+        setChatMessages((prev) => {
+          if (prev.some((m) => m._id === msg._id)) return prev;
+          const isMe = (msg.senderId?._id || msg.senderId) === currentUser?._id;
+          return [
+            ...prev,
+            {
+              _id: msg._id,
+              senderId: msg.senderId,
+              senderName: msg.senderName,
+              text: msg.message,
+              time: new Date(msg.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isMe,
+            },
+          ];
+        });
+      } else if (msg.senderId !== currentUser?._id) {
+        // Notification for incoming message from other user
+        toast(`💬 New message from ${msg.senderName}: "${msg.message.slice(0, 35)}"`, {
+          icon: '✉️',
+          duration: 4000,
+        });
+      }
+    };
+
+    socket.on('direct-message', handleDirectMessage);
+    return () => {
+      socket.off('direct-message', handleDirectMessage);
+    };
+  }, [socket, selectedUser, currentUser]);
+
+  // Send Direct Message in real-time
+  const handleSendChatMessage = async (e) => {
+    e.preventDefault();
+    if (!chatInput.trim() || !selectedUser) return;
+    const textToSend = chatInput.trim();
+    setChatInput('');
+
+    try {
+      if (socket && socket.connected) {
+        socket.emit('direct-message', {
+          receiverId: selectedUser._id,
+          message: textToSend,
+        });
+      } else {
+        const res = await messageService.sendDirectMessage(selectedUser._id, textToSend);
+        if (res?.message) {
+          setChatMessages((prev) => [
+            ...prev,
+            {
+              _id: res.message._id,
+              senderId: currentUser._id,
+              senderName: currentUser.name,
+              text: res.message.message,
+              time: new Date(res.message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isMe: true,
+            },
+          ]);
+        }
+      }
+    } catch {
+      toast.error('Failed to send message');
+    }
+  };
+
   // Format time zone string
   const getTimeZoneString = () => {
     try {
@@ -154,26 +268,6 @@ const ContactsPage = () => {
     } catch {
       return 'GMT +00:00 (UTC)';
     }
-  };
-
-  const handleStartChat = () => {
-    if (!selectedUser || selectedUser._id === currentUser?._id) return;
-    setChatOpen(true);
-    if (chatMessages.length === 0) {
-      setChatMessages([
-        { sender: selectedUser.name, text: `Hi! Feel free to reach out anytime.`, time: 'Just now' }
-      ]);
-    }
-  };
-
-  const handleSendChatMessage = (e) => {
-    e.preventDefault();
-    if (!chatInput.trim()) return;
-    setChatMessages(prev => [
-      ...prev,
-      { sender: 'You', text: chatInput.trim(), time: 'Just now', isMe: true }
-    ]);
-    setChatInput('');
   };
 
   // Avatar color generator based on name
@@ -651,64 +745,107 @@ const ContactsPage = () => {
 
       </div>
 
-      {/* ── Slide-over Instant Chat Modal ── */}
+      {/* ── Slide-over Real 1-on-1 Instant Chat Drawer ── */}
       {chatOpen && selectedUser && (
         <div className="vb-card animate-slide-right" style={{
           position: 'fixed',
           top: '2rem',
           right: '2rem',
           bottom: '2rem',
-          width: '340px',
+          width: '360px',
+          maxWidth: 'calc(100vw - 2rem)',
           background: '#ffffff',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.18)',
           zIndex: 100,
           display: 'flex',
           flexDirection: 'column',
           padding: '1.25rem',
+          borderRadius: '1rem',
+          border: '1px solid #e2e8f0',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <div style={{ width: '2rem', height: '2rem', borderRadius: '50%', background: '#2f65f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
+          {/* Header */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', borderBottom: '1px solid #f1f5f9', paddingBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <div style={{ width: '2.25rem', height: '2.25rem', borderRadius: '50%', background: getAvatarColor(selectedUser.name), color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.875rem', fontWeight: 700 }}>
                 {selectedUser.name?.charAt(0).toUpperCase()}
               </div>
               <div>
-                <h3 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#1e293b' }}>{selectedUser.name}</h3>
-                <span style={{ fontSize: '0.6875rem', color: '#10b981', fontWeight: 600 }}>Available now</span>
-              </div>
-            </div>
-            <button onClick={() => setChatOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '1.25rem' }}>✕</button>
-          </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem 0' }}>
-            {chatMessages.map((m, i) => (
-              <div key={i} style={{ alignSelf: m.isMe ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
-                <div style={{
-                  padding: '0.5rem 0.875rem',
-                  borderRadius: '0.75rem',
-                  background: m.isMe ? '#2f65f6' : '#f1f5f9',
-                  color: m.isMe ? '#ffffff' : '#1e293b',
-                  fontSize: '0.8125rem',
-                }}>
-                  {m.text}
-                </div>
-                <span style={{ fontSize: '0.625rem', color: '#94a3b8', marginTop: '0.125rem', display: 'block', textAlign: m.isMe ? 'right' : 'left' }}>
-                  {m.time}
+                <h3 style={{ fontSize: '0.9375rem', fontWeight: 700, color: '#1e293b' }}>{selectedUser.name}</h3>
+                <span style={{ fontSize: '0.6875rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#10b981' }} />
+                  Online
                 </span>
               </div>
-            ))}
+            </div>
+            <button
+              onClick={() => setChatOpen(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: '#64748b',
+                fontSize: '1.25rem',
+                padding: '0.25rem',
+              }}
+              title="Close chat"
+            >
+              ✕
+            </button>
           </div>
 
+          {/* Real Chat Messages Stream */}
+          <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0.5rem 0' }}>
+            {chatLoading ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '2rem 0' }}>
+                <div className="spinner" />
+              </div>
+            ) : chatMessages.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '3rem 1rem', color: '#94a3b8', fontSize: '0.8125rem' }}>
+                <HiChat size={28} style={{ color: '#cbd5e1', margin: '0 auto 0.5rem' }} />
+                No messages yet. Send a direct message to start the conversation!
+              </div>
+            ) : (
+              chatMessages.map((m, i) => (
+                <div key={m._id || i} style={{ alignSelf: m.isMe ? 'flex-end' : 'flex-start', maxWidth: '82%' }}>
+                  <div style={{
+                    padding: '0.625rem 0.875rem',
+                    borderRadius: m.isMe ? '1rem 1rem 0.25rem 1rem' : '1rem 1rem 1rem 0.25rem',
+                    background: m.isMe ? '#2f65f6' : '#f1f5f9',
+                    color: m.isMe ? '#ffffff' : '#1e293b',
+                    fontSize: '0.8125rem',
+                    lineHeight: 1.4,
+                    wordBreak: 'break-word',
+                  }}>
+                    {m.text}
+                  </div>
+                  <span style={{ fontSize: '0.625rem', color: '#94a3b8', marginTop: '0.125rem', display: 'block', textAlign: m.isMe ? 'right' : 'left' }}>
+                    {m.time}
+                  </span>
+                </div>
+              ))
+            )}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Chat Input Form */}
           <form onSubmit={handleSendChatMessage} style={{ display: 'flex', gap: '0.5rem', marginTop: '0.75rem', borderTop: '1px solid #f1f5f9', paddingTop: '0.75rem' }}>
             <input
               type="text"
-              placeholder="Type a message..."
+              placeholder={`Message ${selectedUser.name}...`}
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               className="input"
               style={{ flex: 1, fontSize: '0.8125rem', padding: '0.5rem 0.75rem' }}
+              autoFocus
             />
-            <button type="submit" className="btn btn-primary" style={{ padding: '0.5rem 0.875rem' }}>
-              Send
+            <button
+              type="submit"
+              disabled={!chatInput.trim()}
+              className="btn btn-primary"
+              style={{ padding: '0.5rem 0.875rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+            >
+              <span>Send</span>
+              <HiPaperAirplane size={14} style={{ transform: 'rotate(90deg)' }} />
             </button>
           </form>
         </div>

@@ -20,6 +20,7 @@ const meetingRoutes = require('./routes/meetingRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const standupRoutes = require('./routes/standupRoutes');
 const invitationRoutes = require('./routes/invitationRoutes');
+const messageRoutes = require('./routes/directMessageRoutes');
 
 // Initialize Express
 const app = express();
@@ -54,6 +55,7 @@ app.use('/api/meetings', meetingRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/standups', standupRoutes);
 app.use('/api/invitations', invitationRoutes);
+app.use('/api/messages', messageRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

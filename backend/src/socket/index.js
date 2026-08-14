@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
 const config = require('../config/config');
 const Message = require('../models/Message');
+const DirectMessage = require('../models/DirectMessage');
 
 // Track active rooms and participants
 const rooms = new Map();
@@ -24,6 +25,11 @@ const setupSocket = (io) => {
 
   io.on('connection', (socket) => {
     console.log(`🔌 User connected: ${socket.userName} (${socket.id})`);
+
+    // Join personal user room for direct messages & instant notifications
+    if (socket.userId) {
+      socket.join(`user:${socket.userId}`);
+    }
 
     // ─── Room Management ───────────────────────────────────────
     socket.on('join-room', ({ roomId, userName }) => {
@@ -141,6 +147,33 @@ const setupSocket = (io) => {
         } catch (err) {
           console.error('Failed to save chat message:', err.message);
         }
+      }
+    });
+
+    // ─── Real-Time 1-on-1 Direct Messaging ────────────────────
+    socket.on('direct-message', async ({ receiverId, message }) => {
+      if (!receiverId || !message || !message.trim()) return;
+      try {
+        const dm = await DirectMessage.create({
+          senderId: socket.userId,
+          receiverId,
+          senderName: socket.userName,
+          message: message.trim(),
+        });
+        const payload = {
+          _id: dm._id,
+          senderId: socket.userId,
+          receiverId,
+          senderName: socket.userName,
+          message: dm.message,
+          createdAt: dm.createdAt,
+        };
+        // Emit to recipient's private user room
+        io.to(`user:${receiverId}`).emit('direct-message', payload);
+        // Emit back to sender
+        socket.emit('direct-message', payload);
+      } catch (err) {
+        console.error('Failed to send direct message via socket:', err.message);
       }
     });
 
