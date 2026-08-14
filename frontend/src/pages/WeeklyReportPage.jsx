@@ -2,12 +2,11 @@ import { useState, useEffect } from 'react';
 import { standupService } from '../services/standupService';
 import {
   HiChartBar, HiCalendar, HiSparkles, HiCheckCircle,
-  HiXCircle, HiRefresh, HiDownload, HiChevronLeft, HiChevronRight,
+  HiChevronLeft, HiChevronRight,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
 
 const DAY_NAMES = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
-const DAY_FULL = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
 function getWeekStart(date = new Date()) {
   const d = new Date(date);
@@ -36,15 +35,14 @@ const ScoreCircle = ({ score }) => {
   return (
     <div style={{
       width: '2.5rem', height: '2.5rem', borderRadius: '50%',
-      background: `conic-gradient(${color} ${score * 3.6}deg, rgba(255,255,255,0.05) 0deg)`,
+      background: `conic-gradient(${color} ${score * 3.6}deg, #e2e8f0 0deg)`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: '0.6875rem', fontWeight: 700, color,
-      boxShadow: `0 0 12px ${color}40`,
       position: 'relative',
     }}>
       <div style={{
-        position: 'absolute', inset: '4px', borderRadius: '50%',
-        background: 'var(--color-bg-primary)',
+        position: 'absolute', inset: '3px', borderRadius: '50%',
+        background: '#ffffff',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '0.6875rem', fontWeight: 700, color,
       }}>
@@ -59,11 +57,11 @@ const DayCell = ({ entry }) => {
     return (
       <td style={{
         padding: '0.75rem 0.5rem',
-        borderRight: '1px solid rgba(56,189,248,0.06)',
+        borderRight: '1px solid #f1f5f9',
         textAlign: 'center',
         verticalAlign: 'top',
       }}>
-        <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', fontStyle: 'italic', padding: '0.25rem' }}>
+        <div style={{ fontSize: '0.6875rem', color: '#94a3b8', fontStyle: 'italic', padding: '0.25rem' }}>
           No entry
         </div>
       </td>
@@ -73,31 +71,31 @@ const DayCell = ({ entry }) => {
   return (
     <td style={{
       padding: '0.625rem 0.5rem',
-      borderRight: '1px solid rgba(56,189,248,0.06)',
+      borderRight: '1px solid #f1f5f9',
       verticalAlign: 'top',
       minWidth: '140px',
     }}>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         {entry.win && (
-          <div>
-            <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#10b981', letterSpacing: '0.08em', marginBottom: '0.125rem' }}>🏆 WIN</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{entry.win}</div>
+          <div style={{ background: '#f0fdf4', padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #bbf7d0' }}>
+            <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#059669', letterSpacing: '0.05em', marginBottom: '0.125rem' }}>🏆 WIN</div>
+            <div style={{ fontSize: '0.75rem', color: '#1e293b', lineHeight: 1.3 }}>{entry.win}</div>
           </div>
         )}
         {entry.oneThing && (
-          <div>
-            <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#38bdf8', letterSpacing: '0.08em', marginBottom: '0.125rem' }}>🎯 ONE THING</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{entry.oneThing}</div>
+          <div style={{ background: '#eff6ff', padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #bfdbfe' }}>
+            <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#2f65f6', letterSpacing: '0.05em', marginBottom: '0.125rem' }}>🎯 ONE THING</div>
+            <div style={{ fontSize: '0.75rem', color: '#1e293b', lineHeight: 1.3 }}>{entry.oneThing}</div>
           </div>
         )}
         {entry.challenge && (
-          <div>
-            <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#f59e0b', letterSpacing: '0.08em', marginBottom: '0.125rem' }}>⚡ CHALLENGE</div>
-            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)', lineHeight: 1.4 }}>{entry.challenge}</div>
+          <div style={{ background: '#fffbeb', padding: '0.35rem 0.5rem', borderRadius: '0.375rem', border: '1px solid #fde68a' }}>
+            <div style={{ fontSize: '0.5625rem', fontWeight: 700, color: '#d97706', letterSpacing: '0.05em', marginBottom: '0.125rem' }}>⚡ CHALLENGE</div>
+            <div style={{ fontSize: '0.75rem', color: '#1e293b', lineHeight: 1.3 }}>{entry.challenge}</div>
           </div>
         )}
         {entry.achievedOneThing === true && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', color: '#10b981', marginTop: '0.125rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.625rem', color: '#059669', fontWeight: 600, marginTop: '0.125rem' }}>
             <HiCheckCircle size={11} /> Followed through
           </div>
         )}
@@ -112,26 +110,11 @@ const WeeklyReportPage = () => {
   const [loading, setLoading] = useState(true);
   const [aiReport, setAiReport] = useState(null);
   const [generatingReport, setGeneratingReport] = useState(false);
-  const [availableWeeks, setAvailableWeeks] = useState([]);
 
   useEffect(() => {
     loadWeekData(currentWeekStart);
-    loadAvailableWeeks();
-  }, []);
-
-  useEffect(() => {
-    loadWeekData(currentWeekStart);
-    setAiReport(null); // reset AI report on week change
+    setAiReport(null);
   }, [currentWeekStart]);
-
-  const loadAvailableWeeks = async () => {
-    try {
-      const res = await standupService.getAvailableWeeks();
-      setAvailableWeeks(res.weeks || []);
-    } catch {
-      // ignore
-    }
-  };
 
   const loadWeekData = async (weekStart) => {
     setLoading(true);
@@ -181,21 +164,21 @@ const WeeklyReportPage = () => {
   };
 
   return (
-    <div className="page-container">
+    <div className="page-container" style={{ padding: '1.75rem 2rem' }}>
       {/* Header */}
-      <div className="animate-fade-in" style={{ marginBottom: '2rem' }}>
+      <div className="animate-fade-in" style={{ marginBottom: '1.75rem' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.875rem' }}>
             <div style={{
-              width: '2.5rem', height: '2.5rem', borderRadius: '0.75rem',
-              background: 'linear-gradient(135deg, rgba(139,92,246,0.2), rgba(59,130,246,0.15))',
+              width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem',
+              background: '#eef4ff', color: '#2f65f6',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}>
-              <HiChartBar size={22} color="#a78bfa" />
+              <HiChartBar size={24} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>Weekly Report</h1>
-              <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#1e293b' }}>Weekly Report</h1>
+              <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
                 Team leadership tracker — follow-through & challenge resolution
               </p>
             </div>
@@ -205,11 +188,11 @@ const WeeklyReportPage = () => {
             className="btn btn-primary"
             onClick={handleGenerateAIReport}
             disabled={generatingReport || !weeklyData.length}
-            style={{ gap: '0.5rem' }}
+            style={{ gap: '0.5rem', padding: '0.625rem 1.25rem' }}
           >
             {generatingReport
-              ? <div className="spinner" style={{ width: '1.125rem', height: '1.125rem', borderWidth: '2px' }} />
-              : <HiSparkles size={16} />
+              ? <div className="spinner" style={{ width: '1.125rem', height: '1.125rem', borderWidth: '2px', borderTopColor: '#ffffff' }} />
+              : <HiSparkles size={18} />
             }
             AI Leadership Report
           </button>
@@ -223,14 +206,14 @@ const WeeklyReportPage = () => {
             </button>
             <div style={{
               padding: '0.5rem 1.25rem', borderRadius: '0.75rem',
-              background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.15)',
-              fontSize: '0.875rem', fontWeight: 600, color: '#38bdf8',
+              background: '#eef4ff', border: '1px solid #bfdbfe',
+              fontSize: '0.875rem', fontWeight: 600, color: '#2f65f6',
               display: 'flex', alignItems: 'center', gap: '0.5rem',
             }}>
-              <HiCalendar size={14} />
+              <HiCalendar size={16} />
               {formatWeekLabel(currentWeekStart.toISOString())}
               {isCurrentWeek && (
-                <span style={{ fontSize: '0.6875rem', background: 'rgba(16,185,129,0.15)', color: '#10b981', padding: '0.125rem 0.5rem', borderRadius: '9999px' }}>
+                <span style={{ fontSize: '0.6875rem', background: '#dcfce7', color: '#15803d', padding: '0.125rem 0.5rem', borderRadius: '9999px', fontWeight: 600 }}>
                   This Week
                 </span>
               )}
@@ -248,7 +231,7 @@ const WeeklyReportPage = () => {
 
           {/* Calendar Date Picker to jump to any week */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>Jump to date:</span>
+            <span style={{ fontSize: '0.8125rem', color: '#64748b' }}>Jump to date:</span>
             <input
               type="date"
               className="input"
@@ -258,34 +241,33 @@ const WeeklyReportPage = () => {
                   setCurrentWeekStart(getWeekStart(targetDate));
                 }
               }}
-              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.75rem', cursor: 'pointer' }}
+              style={{ fontSize: '0.8125rem', padding: '0.4rem 0.75rem', cursor: 'pointer', background: '#ffffff', width: 'auto' }}
               title="Select a date to jump to that week's report"
             />
           </div>
         </div>
-
       </div>
 
       {/* AI Report Panel */}
       {aiReport && (
-        <div className="glass-card animate-slide-up" style={{
+        <div className="vb-card animate-slide-up" style={{
           padding: '1.75rem', marginBottom: '2rem',
-          background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.05))',
-          borderColor: 'rgba(167,139,250,0.25)',
+          background: '#f8fafc',
+          borderColor: '#e2e8f0',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-            <HiSparkles size={18} color="#a78bfa" />
-            <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#a78bfa' }}>AI Leadership Report</h3>
-            <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginLeft: 'auto' }}>Powered by Gemini</span>
+            <HiSparkles size={20} color="#2f65f6" />
+            <h3 style={{ fontSize: '1.125rem', fontWeight: 700, color: '#1e293b' }}>AI Leadership Report</h3>
+            <span style={{ fontSize: '0.75rem', color: '#64748b', marginLeft: 'auto', fontWeight: 500 }}>Powered by Gemini</span>
           </div>
 
           {/* Week summary */}
           <div style={{
-            padding: '0.875rem 1.25rem', borderRadius: '0.75rem',
-            background: 'rgba(167,139,250,0.08)', borderLeft: '3px solid #a78bfa',
+            padding: '1rem 1.25rem', borderRadius: '0.75rem',
+            background: '#eff6ff', borderLeft: '4px solid #2f65f6',
             marginBottom: '1.25rem',
           }}>
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+            <p style={{ fontSize: '0.875rem', color: '#1e293b', lineHeight: 1.6 }}>
               {aiReport.weekSummary}
             </p>
           </div>
@@ -294,26 +276,25 @@ const WeeklyReportPage = () => {
           {aiReport.members?.length > 0 && (
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
               {aiReport.members.map((member, i) => (
-                <div key={i} style={{
-                  padding: '1.125rem', borderRadius: '0.75rem',
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                <div key={i} className="vb-card" style={{
+                  padding: '1.25rem',
+                  background: '#ffffff',
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.9375rem' }}>{member.name}</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#1e293b' }}>{member.name}</div>
                     {member.score != null && <ScoreCircle score={member.score} />}
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8125rem', color: 'var(--color-text-secondary)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.8125rem', color: '#475569' }}>
                     <div>
-                      <span style={{ color: '#38bdf8', fontWeight: 600 }}>Follow-through: </span>
+                      <span style={{ color: '#2f65f6', fontWeight: 700 }}>Follow-through: </span>
                       {member.followThrough}
                     </div>
                     <div>
-                      <span style={{ color: '#f59e0b', fontWeight: 600 }}>Challenge: </span>
+                      <span style={{ color: '#d97706', fontWeight: 700 }}>Challenge: </span>
                       {member.challengeProgress}
                     </div>
-                    <div style={{ padding: '0.625rem', borderRadius: '0.5rem', background: 'rgba(167,139,250,0.08)', marginTop: '0.25rem' }}>
-                      <span style={{ color: '#a78bfa', fontWeight: 600 }}>💡 Coaching: </span>
+                    <div style={{ padding: '0.625rem', borderRadius: '0.5rem', background: '#f8fafc', border: '1px solid #e2e8f0', marginTop: '0.25rem' }}>
+                      <span style={{ color: '#7c3aed', fontWeight: 700 }}>💡 Coaching: </span>
                       {member.coaching}
                     </div>
                   </div>
@@ -330,46 +311,46 @@ const WeeklyReportPage = () => {
           <div className="spinner" />
         </div>
       ) : weeklyData.length === 0 ? (
-        <div className="glass-card" style={{ padding: '4rem', textAlign: 'center' }}>
-          <HiChartBar size={48} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem', display: 'block' }} />
-          <h3 style={{ fontWeight: 600, marginBottom: '0.5rem' }}>No standup data for this week</h3>
-          <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+        <div className="vb-card" style={{ padding: '4rem', textAlign: 'center' }}>
+          <HiChartBar size={48} style={{ color: '#94a3b8', margin: '0 auto 1rem', display: 'block' }} />
+          <h3 style={{ fontWeight: 700, fontSize: '1.125rem', color: '#1e293b', marginBottom: '0.5rem' }}>No standup data for this week</h3>
+          <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
             Team members need to submit their daily standups to appear here.
           </p>
         </div>
       ) : (
-        <div className="glass-card animate-fade-in" style={{ overflow: 'auto' }}>
+        <div className="vb-card animate-fade-in" style={{ overflow: 'auto', padding: 0 }}>
           <table style={{
             width: '100%', borderCollapse: 'collapse',
             minWidth: '700px',
           }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid rgba(56,189,248,0.12)' }}>
+              <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                 <th style={{
                   padding: '1rem 1.5rem', textAlign: 'left', fontSize: '0.75rem',
-                  fontWeight: 700, color: 'var(--color-text-secondary)',
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                  width: '160px', position: 'sticky', left: 0,
-                  background: 'linear-gradient(135deg, rgba(26,26,46,0.95), rgba(34,34,64,0.95))',
-                  borderRight: '1px solid rgba(56,189,248,0.1)',
+                  fontWeight: 700, color: '#475569',
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  width: '180px', position: 'sticky', left: 0,
+                  background: '#f8fafc',
+                  borderRight: '1px solid #e2e8f0',
                 }}>
                   Team Member
                 </th>
                 {DAY_NAMES.map((day, i) => (
                   <th key={day} style={{
                     padding: '1rem 0.75rem', textAlign: 'center', fontSize: '0.75rem',
-                    fontWeight: 700, color: 'var(--color-text-secondary)',
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                    borderRight: i < 4 ? '1px solid rgba(56,189,248,0.06)' : 'none',
+                    fontWeight: 700, color: '#475569',
+                    letterSpacing: '0.05em', textTransform: 'uppercase',
+                    borderRight: i < 4 ? '1px solid #e2e8f0' : 'none',
                   }}>
                     {day}
                   </th>
                 ))}
                 <th style={{
                   padding: '1rem 0.75rem', textAlign: 'center', fontSize: '0.75rem',
-                  fontWeight: 700, color: '#a78bfa',
-                  letterSpacing: '0.08em', textTransform: 'uppercase',
-                  width: '80px',
+                  fontWeight: 700, color: '#2f65f6',
+                  letterSpacing: '0.05em', textTransform: 'uppercase',
+                  width: '100px',
                 }}>
                   Follow-through
                 </th>
@@ -377,7 +358,6 @@ const WeeklyReportPage = () => {
             </thead>
             <tbody>
               {weeklyData.map((member, memberIdx) => {
-                // Calculate follow-through: how many days did oneThing become next-day win?
                 let followCount = 0;
                 let possibleCount = 0;
                 for (let d = 0; d <= 3; d++) {
@@ -397,29 +377,29 @@ const WeeklyReportPage = () => {
                   <tr
                     key={member.userId}
                     style={{
-                      borderBottom: memberIdx < weeklyData.length - 1 ? '1px solid rgba(56,189,248,0.06)' : 'none',
+                      borderBottom: memberIdx < weeklyData.length - 1 ? '1px solid #f1f5f9' : 'none',
                       transition: 'background 0.2s',
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'rgba(56,189,248,0.03)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = '#ffffff'}
                   >
                     {/* Member name cell */}
                     <td style={{
                       padding: '1rem 1.5rem',
                       position: 'sticky', left: 0,
-                      background: 'linear-gradient(135deg, rgba(26,26,46,0.98), rgba(34,34,64,0.98))',
-                      borderRight: '1px solid rgba(56,189,248,0.1)',
+                      background: '#ffffff',
+                      borderRight: '1px solid #e2e8f0',
                       verticalAlign: 'top',
                     }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{member.userName}</div>
+                        <div style={{ fontWeight: 700, fontSize: '0.875rem', color: '#1e293b' }}>{member.userName}</div>
                         {member.userEmail && (
-                          <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '140px' }}>
+                          <div style={{ fontSize: '0.6875rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '160px' }}>
                             {member.userEmail}
                           </div>
                         )}
-                        <div style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)', marginTop: '0.25rem' }}>
-                          {Object.keys(member.days).length}/5 days
+                        <div style={{ fontSize: '0.6875rem', color: '#94a3b8', marginTop: '0.25rem' }}>
+                          {Object.keys(member.days).length}/5 days active
                         </div>
                       </div>
                     </td>
@@ -434,12 +414,12 @@ const WeeklyReportPage = () => {
                       {followRate !== null ? (
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.25rem' }}>
                           <ScoreCircle score={followRate} />
-                          <div style={{ fontSize: '0.625rem', color: 'var(--color-text-muted)' }}>
+                          <div style={{ fontSize: '0.6875rem', color: '#64748b', fontWeight: 600 }}>
                             {followCount}/{possibleCount}
                           </div>
                         </div>
                       ) : (
-                        <span style={{ fontSize: '0.6875rem', color: 'var(--color-text-muted)' }}>N/A</span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>N/A</span>
                       )}
                     </td>
                   </tr>
@@ -451,21 +431,21 @@ const WeeklyReportPage = () => {
       )}
 
       {/* Legend */}
-      <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+      <div style={{ marginTop: '1.5rem', display: 'flex', gap: '1.5rem', flexWrap: 'wrap', fontSize: '0.75rem', color: '#64748b' }}>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#059669', display: 'inline-block' }} />
           🏆 Win — Previous day achievement
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#38bdf8', display: 'inline-block' }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2f65f6', display: 'inline-block' }} />
           🎯 One Thing — Today's focus
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#d97706', display: 'inline-block' }} />
           ⚡ Challenge — Current blocker
         </span>
         <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#a78bfa', display: 'inline-block' }} />
+          <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#2f65f6', display: 'inline-block' }} />
           Follow-through score (0–100)
         </span>
       </div>
@@ -474,3 +454,4 @@ const WeeklyReportPage = () => {
 };
 
 export default WeeklyReportPage;
+

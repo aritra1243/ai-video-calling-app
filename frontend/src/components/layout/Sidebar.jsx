@@ -4,9 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import {
   HiHome,
   HiCalendar,
-  HiVideoCamera,
-  HiIdentification,
-  HiPencilAlt,
+  HiSparkles,
+  HiClipboardList,
+  HiChartBar,
   HiLogout,
 } from 'react-icons/hi';
 
@@ -21,24 +21,24 @@ const NAV_ITEMS = [
     id: 'calendar',
     label: 'Calendar',
     icon: HiCalendar,
-    to: '/dashboard#calendar',
+    to: '/dashboard',
   },
   {
     id: 'recording',
-    label: 'Recording',
-    icon: HiVideoCamera,
+    label: 'AI Summaries',
+    icon: HiSparkles,
     to: '/ai-summaries',
   },
   {
-    id: 'contacts',
-    label: 'Contacts',
-    icon: HiIdentification,
+    id: 'daily-standup',
+    label: 'Daily Standup',
+    icon: HiClipboardList,
     to: '/daily-standup',
   },
   {
-    id: 'whiteboards',
-    label: 'Whiteboards',
-    icon: HiPencilAlt,
+    id: 'weekly-report',
+    label: 'Weekly Report',
+    icon: HiChartBar,
     to: '/weekly-report',
   },
 ];

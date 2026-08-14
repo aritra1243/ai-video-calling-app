@@ -154,7 +154,6 @@ const AISummariesPage = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {filteredEndedMeetings.map((meeting, index) => {
-
             const hasSummary = Boolean(meeting.summary?.summary);
             const hasTranscript = Boolean(meeting.transcript?.text);
             const hasRecording = Boolean(meeting.recordingFilename);
@@ -163,31 +162,30 @@ const AISummariesPage = () => {
             return (
               <div
                 key={meeting._id}
-                className="glass-card animate-fade-in"
-                style={{ animationDelay: `${index * 0.06}s`, overflow: 'hidden' }}
+                className="vb-card animate-fade-in"
+                style={{ animationDelay: `${index * 0.06}s`, overflow: 'hidden', padding: 0 }}
               >
                 {/* Card header */}
                 <div style={{ padding: '1.25rem 1.5rem' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1, minWidth: 0 }}>
                       <div style={{
-                        width: '2.5rem', height: '2.5rem', borderRadius: '0.625rem', flexShrink: 0,
-                        background: hasSummary
-                          ? 'linear-gradient(135deg, rgba(129,140,248,0.2), rgba(59,130,246,0.15))'
-                          : 'rgba(30,41,59,0.8)',
+                        width: '2.75rem', height: '2.75rem', borderRadius: '0.75rem', flexShrink: 0,
+                        background: hasSummary ? '#eef4ff' : '#f1f5f9',
+                        color: hasSummary ? '#2f65f6' : '#64748b',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        border: hasSummary ? '1px solid rgba(129,140,248,0.3)' : '1px solid var(--color-border)',
+                        border: hasSummary ? '1px solid #bfdbfe' : '1px solid #e2e8f0',
                       }}>
-                        <HiVideoCamera size={18} color={hasSummary ? '#818cf8' : 'var(--color-text-muted)'} />
+                        <HiVideoCamera size={20} />
                       </div>
                       <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>{meeting.title}</div>
-                        <div style={{ display: 'flex', gap: '0.75rem', fontSize: '0.75rem', color: 'var(--color-text-secondary)', flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: '#1e293b', marginBottom: '0.25rem' }}>{meeting.title}</div>
+                        <div style={{ display: 'flex', gap: '0.875rem', fontSize: '0.75rem', color: '#64748b', flexWrap: 'wrap' }}>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <HiCalendar size={12} />{formatDate(meeting.createdAt)}
+                            <HiCalendar size={13} />{formatDate(meeting.createdAt)}
                           </span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            <HiUsers size={12} />{meeting.participants?.length || 0} participants
+                            <HiUsers size={13} />{meeting.participants?.length || 0} participants
                           </span>
                         </div>
                       </div>
@@ -197,7 +195,7 @@ const AISummariesPage = () => {
                       {hasSummary && (
                         <span style={{
                           padding: '0.25rem 0.75rem', borderRadius: '9999px', fontSize: '0.6875rem', fontWeight: 600,
-                          background: 'rgba(129,140,248,0.15)', color: '#818cf8', border: '1px solid rgba(129,140,248,0.25)',
+                          background: '#eef4ff', color: '#2f65f6', border: '1px solid #bfdbfe',
                         }}>
                           ✨ Summary Ready
                         </span>
@@ -205,7 +203,7 @@ const AISummariesPage = () => {
                       {!hasSummary && hasRecording && !hasTranscript && (
                         <button
                           className="btn btn-secondary"
-                          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+                          style={{ fontSize: '0.8125rem', padding: '0.4rem 0.875rem' }}
                           disabled={transcribing === meeting._id}
                           onClick={() => handleTranscribe(meeting)}
                         >
@@ -215,15 +213,15 @@ const AISummariesPage = () => {
                       {!hasSummary && hasTranscript && (
                         <button
                           className="btn btn-primary"
-                          style={{ fontSize: '0.8125rem', padding: '0.5rem 1rem' }}
+                          style={{ fontSize: '0.8125rem', padding: '0.4rem 0.875rem' }}
                           disabled={summarizing === meeting._id}
                           onClick={() => handleSummarize(meeting)}
                         >
-                          {summarizing === meeting._id ? <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px' }} /> : <><HiSparkles size={14} /> Generate Summary</>}
+                          {summarizing === meeting._id ? <div className="spinner" style={{ width: '1rem', height: '1rem', borderWidth: '2px', borderTopColor: '#ffffff' }} /> : <><HiSparkles size={14} /> Generate Summary</>}
                         </button>
                       )}
                       {!hasSummary && !hasRecording && (
-                        <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>No recording</span>
+                        <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>No recording</span>
                       )}
                       <button
                         onClick={() => setExpandedId(isExpanded ? null : meeting._id)}
@@ -239,28 +237,28 @@ const AISummariesPage = () => {
 
                 {/* Expanded Summary */}
                 {isExpanded && hasSummary && (
-                  <div style={{ borderTop: '1px solid rgba(56,189,248,0.1)', padding: '1.5rem' }}>
+                  <div style={{ borderTop: '1px solid #f1f5f9', padding: '1.5rem', background: '#f8fafc' }}>
                     {/* Summary text */}
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <h4 style={{ fontSize: '0.875rem', fontWeight: 600, color: '#818cf8', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                        <HiSparkles size={14} /> AI Summary
+                      <h4 style={{ fontSize: '0.875rem', fontWeight: 700, color: '#2f65f6', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <HiSparkles size={16} /> AI Summary
                       </h4>
-                      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)', lineHeight: 1.6 }}>
+                      <p style={{ fontSize: '0.875rem', color: '#334155', lineHeight: 1.6 }}>
                         {meeting.summary.summary}
                       </p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '1rem', marginBottom: '1.25rem' }}>
                       {/* Key Points */}
                       {meeting.summary.keyPoints?.length > 0 && (
-                        <div>
-                          <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <HiClipboardList size={14} /> Key Points
+                        <div className="vb-card" style={{ padding: '1rem', background: '#ffffff' }}>
+                          <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <HiClipboardList size={15} color="#2f65f6" /> Key Points
                           </h4>
-                          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.375rem', paddingLeft: 0 }}>
                             {meeting.summary.keyPoints.map((pt, i) => (
-                              <li key={i} style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', display: 'flex', gap: '0.5rem' }}>
-                                <span style={{ color: '#38bdf8', flexShrink: 0 }}>•</span>{pt}
+                              <li key={i} style={{ fontSize: '0.8125rem', color: '#475569', display: 'flex', gap: '0.5rem' }}>
+                                <span style={{ color: '#2f65f6', flexShrink: 0 }}>•</span>{pt}
                               </li>
                             ))}
                           </ul>
@@ -269,15 +267,15 @@ const AISummariesPage = () => {
 
                       {/* Action Items */}
                       {meeting.summary.actionItems?.length > 0 && (
-                        <div>
-                          <h4 style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                            <HiLightningBolt size={14} /> Action Items
+                        <div className="vb-card" style={{ padding: '1rem', background: '#ffffff' }}>
+                          <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <HiLightningBolt size={15} color="#d97706" /> Action Items
                           </h4>
-                          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+                          <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.375rem', paddingLeft: 0 }}>
                             {meeting.summary.actionItems.map((item, i) => (
-                              <li key={i} style={{ fontSize: '0.8125rem', color: 'var(--color-text-secondary)', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
-                                <HiCheckCircle size={14} style={{ color: item.completed ? '#10b981' : 'var(--color-text-muted)', flexShrink: 0, marginTop: '1px' }} />
-                                <span><strong style={{ color: 'var(--color-text-primary)' }}>{item.assignee}</strong>: {item.task}</span>
+                              <li key={i} style={{ fontSize: '0.8125rem', color: '#475569', display: 'flex', gap: '0.5rem', alignItems: 'flex-start' }}>
+                                <HiCheckCircle size={15} style={{ color: item.completed ? '#059669' : '#cbd5e1', flexShrink: 0, marginTop: '2px' }} />
+                                <span><strong style={{ color: '#1e293b' }}>{item.assignee}</strong>: {item.task}</span>
                               </li>
                             ))}
                           </ul>
@@ -297,9 +295,9 @@ const AISummariesPage = () => {
 
                 {/* Expanded when no summary yet */}
                 {isExpanded && !hasSummary && (
-                  <div style={{ borderTop: '1px solid rgba(56,189,248,0.1)', padding: '1.5rem', textAlign: 'center' }}>
-                    <HiSparkles size={32} style={{ color: 'var(--color-text-muted)', margin: '0 auto 0.75rem', display: 'block' }} />
-                    <p style={{ color: 'var(--color-text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                  <div style={{ borderTop: '1px solid #f1f5f9', padding: '1.5rem', textAlign: 'center', background: '#f8fafc' }}>
+                    <HiSparkles size={32} style={{ color: '#94a3b8', margin: '0 auto 0.75rem', display: 'block' }} />
+                    <p style={{ color: '#64748b', fontSize: '0.875rem', marginBottom: '1rem' }}>
                       {!hasRecording
                         ? 'No recording available for this meeting.'
                         : !hasTranscript
