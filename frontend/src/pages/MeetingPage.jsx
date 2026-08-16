@@ -58,7 +58,7 @@ const MeetingPage = () => {
 
   const {
     isRecording, recordingTime, recordingBlob,
-    startRecording, stopRecording, formatTime,
+    startRecording, stopRecording, updateRecordingStreams, formatTime,
   } = useRecording();
 
   const isHost = meeting
@@ -314,10 +314,10 @@ const MeetingPage = () => {
         }
       }
     } else {
-      if (stream) {
-        startRecording(stream);
+      if (allStreams.length > 0) {
+        startRecording(allStreams);
         socket?.emit('recording-started', { roomId });
-        toast.success('Recording started');
+        toast.success(`Recording started (${allStreams.length} participant${allStreams.length > 1 ? 's' : ''})`);
       } else {
         toast.error('No media stream available to record');
       }
@@ -351,14 +351,24 @@ const MeetingPage = () => {
     setMessageInput('');
   };
 
-  // Combine streams
-  const allStreams = [];
-  if (stream) {
-    allStreams.push({ id: 'local', stream, userName: user?.name || 'You', isLocal: true, audioEnabled });
-  }
-  remoteStreams.forEach((data, socketId) => {
-    allStreams.push({ id: socketId, stream: data.stream, userName: data.userName, isLocal: false, audioEnabled: true });
-  });
+  // Combine local and remote streams for all participants
+  const allStreams = useMemo(() => {
+    const list = [];
+    if (stream) {
+      list.push({ id: 'local', stream, userName: user?.name || 'You', isLocal: true, audioEnabled });
+    }
+    remoteStreams.forEach((data, socketId) => {
+      list.push({ id: socketId, stream: data.stream, userName: data.userName || 'Participant', isLocal: false, audioEnabled: true });
+    });
+    return list;
+  }, [stream, remoteStreams, user, audioEnabled]);
+
+  // Keep multi-participant recording synced if participants join/leave during recording
+  useEffect(() => {
+    if (isRecording) {
+      updateRecordingStreams(allStreams);
+    }
+  }, [allStreams, isRecording, updateRecordingStreams]);
 
   const displayTiles = useMemo(() => {
     return allStreams;
