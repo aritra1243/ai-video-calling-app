@@ -1,6 +1,8 @@
+import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import api from './services/api';
 import Layout from './components/layout/Layout';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -63,6 +65,24 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  // Keep-alive background ping to prevent Render cold starts and sleep
+  useEffect(() => {
+    const pingBackend = async () => {
+      try {
+        await api.get('/ping');
+      } catch (err) {
+        // Silently ignore ping errors
+      }
+    };
+
+    // Immediate ping on app load
+    pingBackend();
+
+    // Periodic ping every 8 minutes
+    const interval = setInterval(pingBackend, 8 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <BrowserRouter>
       <AuthProvider>

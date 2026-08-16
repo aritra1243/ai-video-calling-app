@@ -67,7 +67,11 @@ app.use('/api/standups', standupRoutes);
 app.use('/api/invitations', invitationRoutes);
 app.use('/api/messages', messageRoutes);
 
-// Root & Health check endpoints
+// Import keep-alive service
+const startKeepAlive = require('./utils/keepAlive');
+const { execSync } = require('child_process');
+
+// Root, Health, & Keep-Alive Ping endpoints
 app.get('/', (req, res) => {
   res.json({
     status: 'ok',
@@ -81,6 +85,28 @@ app.get('/api/health', (req, res) => {
     status: 'ok',
     timestamp: new Date().toISOString(),
   });
+});
+
+app.get('/api/ping', (req, res) => {
+  res.json({
+    status: 'alive',
+    message: 'Pong! Server is active',
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+  });
+});
+
+app.get('/api/disk-status', (req, res) => {
+  try {
+    const diskInfo = execSync('df -h').toString();
+    res.json({
+      status: 'ok',
+      diskOutput: diskInfo.split('\n'),
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 // Error handler
@@ -102,4 +128,7 @@ server.listen(port, '0.0.0.0', async () => {
   } catch (err) {
     console.error('MongoDB initial connection error:', err.message);
   }
+
+  // Start self-ping keep-alive service
+  startKeepAlive();
 });
