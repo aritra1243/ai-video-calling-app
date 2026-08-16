@@ -145,6 +145,10 @@ const MeetingPage = () => {
   const [previewStarted, setPreviewStarted] = useState(false);
   const [previewError, setPreviewError] = useState(false);
 
+  // Synchronized Remote Recording State (for participants when host records)
+  const [remoteRecording, setRemoteRecording] = useState({ isRecording: false, hostName: '', startedAt: null });
+  const [remoteRecordingTime, setRemoteRecordingTime] = useState(0);
+
   // Refs
   const localVideoRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -170,6 +174,28 @@ const MeetingPage = () => {
   const isHost = meeting
     ? (meeting.hostId?._id || meeting.hostId)?.toString() === user?._id?.toString()
     : false;
+
+  const isMeetingRecording = isRecording || remoteRecording.isRecording;
+  const activeRecordingTime = isRecording ? recordingTime : remoteRecordingTime;
+
+  // Remote recording timer calculation
+  useEffect(() => {
+    let timer;
+    if (remoteRecording.isRecording) {
+      if (remoteRecording.startedAt) {
+        const elapsed = Math.floor((Date.now() - remoteRecording.startedAt) / 1000);
+        setRemoteRecordingTime(Math.max(0, elapsed));
+      }
+      timer = setInterval(() => {
+        setRemoteRecordingTime((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setRemoteRecordingTime(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [remoteRecording.isRecording, remoteRecording.startedAt]);
 
   useEffect(() => {
     const loadMeeting = async () => {
@@ -259,16 +285,62 @@ const MeetingPage = () => {
       }
     };
 
+    const handleRemoteRecordingStarted = ({ userName, startedAt }) => {
+      setRemoteRecording({
+        isRecording: true,
+        hostName: userName || 'Host',
+        startedAt: startedAt || Date.now(),
+      });
+      toast(`🔴 ${userName || 'Host'} started recording the meeting`, {
+        duration: 4000,
+        id: 'recording-status-toast',
+      });
+    };
+
+    const handleRemoteRecordingStopped = ({ userName }) => {
+      setRemoteRecording({
+        isRecording: false,
+        hostName: '',
+        startedAt: null,
+      });
+      toast(`⏹️ ${userName || 'Host'} stopped recording`, {
+        duration: 3000,
+        id: 'recording-status-toast',
+      });
+    };
+
+    const handleRecordingStatus = ({ isRecording: recActive, hostName, startedAt }) => {
+      if (recActive) {
+        setRemoteRecording({
+          isRecording: true,
+          hostName: hostName || 'Host',
+          startedAt: startedAt || Date.now(),
+        });
+      } else {
+        setRemoteRecording({
+          isRecording: false,
+          hostName: '',
+          startedAt: null,
+        });
+      }
+    };
+
     socket.on('chat-message', handleChat);
     socket.on('meeting-ended', handleMeetingEnded);
     socket.on('reaction-sent', handleReaction);
     socket.on('hand-raised', handleHandRaise);
+    socket.on('recording-started', handleRemoteRecordingStarted);
+    socket.on('recording-stopped', handleRemoteRecordingStopped);
+    socket.on('recording-status', handleRecordingStatus);
 
     return () => {
       socket.off('chat-message', handleChat);
       socket.off('meeting-ended', handleMeetingEnded);
       socket.off('reaction-sent', handleReaction);
       socket.off('hand-raised', handleHandRaise);
+      socket.off('recording-started', handleRemoteRecordingStarted);
+      socket.off('recording-stopped', handleRemoteRecordingStopped);
+      socket.off('recording-status', handleRecordingStatus);
     };
   }, [socket, stopMedia, navigate]);
 
@@ -663,7 +735,7 @@ const MeetingPage = () => {
               <span className="hidden sm:inline" style={{ fontFamily: 'monospace' }}>ID: {roomId}</span>
             </div>
 
-            {isRecording && (
+            {isMeetingRecording && (
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -676,7 +748,7 @@ const MeetingPage = () => {
                 fontWeight: 700,
               }}>
                 <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#ffffff', animation: 'recording-pulse 1s infinite' }} />
-                REC {formatTime(recordingTime)}
+                REC {formatTime(activeRecordingTime)}
               </div>
             )}
 
@@ -724,6 +796,35 @@ const MeetingPage = () => {
             justifyContent: 'center',
             overflow: 'hidden',
           }}>
+            {/* Top-left in-video REC indicator badge */}
+            {isMeetingRecording && (
+              <div style={{
+                position: 'absolute',
+                top: '1.25rem',
+                left: '1.25rem',
+                zIndex: 25,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                background: 'rgba(239, 68, 68, 0.85)',
+                backdropFilter: 'blur(8px)',
+                color: '#ffffff',
+                padding: '0.35rem 0.75rem',
+                borderRadius: '9999px',
+                fontSize: '0.75rem',
+                fontWeight: 700,
+                boxShadow: '0 4px 12px rgba(239, 68, 68, 0.35)',
+              }}>
+                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ffffff', animation: 'recording-pulse 1s infinite' }} />
+                <span>REC {formatTime(activeRecordingTime)}</span>
+                {!isRecording && remoteRecording.hostName && (
+                  <span style={{ fontSize: '0.6875rem', opacity: 0.85, fontWeight: 500 }}>
+                    ({remoteRecording.hostName})
+                  </span>
+                )}
+              </div>
+            )}
+
             {/* Grid of video tiles matching Image 1 3x3 layout */}
             <div style={{
               width: '100%',
@@ -1099,12 +1200,22 @@ const MeetingPage = () => {
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: isRecording ? '2px' : '50%', background: isRecording ? '#ef4444' : 'currentColor' }} />
+                  <div style={{ width: '8px', height: '8px', borderRadius: isMeetingRecording ? '2px' : '50%', background: isMeetingRecording ? '#ef4444' : 'currentColor' }} />
                 </div>
               }
-              label={isRecording ? 'Recording...' : 'Record'}
-              active={isRecording}
-              onClick={handleRecording}
+              label={
+                isRecording
+                  ? 'Recording...'
+                  : remoteRecording.isRecording
+                  ? `Recording (${remoteRecording.hostName || 'Host'})`
+                  : 'Record'
+              }
+              active={isMeetingRecording}
+              onClick={
+                remoteRecording.isRecording && !isRecording
+                  ? () => toast(`Meeting is being recorded by ${remoteRecording.hostName || 'the host'}`, { icon: '🔴' })
+                  : handleRecording
+              }
             />
 
             {/* 6. Notes */}
@@ -1244,7 +1355,7 @@ const MeetingPage = () => {
           top: '2rem',
           right: '2rem',
           bottom: '2rem',
-          width: '320px',
+          width: '340px',
           background: '#ffffff',
           boxShadow: '0 20px 40px rgba(0,0,0,0.15)',
           zIndex: 100,
@@ -1252,24 +1363,85 @@ const MeetingPage = () => {
           flexDirection: 'column',
           padding: '1.25rem',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
             <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b' }}>Attendees ({displayTiles.length})</h3>
             <button onClick={() => setParticipantsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: '1.25rem' }}>✕</button>
           </div>
+
+          {/* Recording & Meeting Status Indicator */}
+          <div style={{
+            padding: '0.625rem 0.75rem',
+            borderRadius: '0.625rem',
+            marginBottom: '1rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: isMeetingRecording ? '#fef2f2' : '#f0fdf4',
+            border: isMeetingRecording ? '1px solid #fee2e2' : '1px solid #dcfce7',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: isMeetingRecording ? '#ef4444' : '#22c55e',
+                animation: isMeetingRecording ? 'recording-pulse 1s infinite' : 'none',
+              }} />
+              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: isMeetingRecording ? '#b91c1c' : '#15803d' }}>
+                {isMeetingRecording ? 'Recording in progress' : 'Meeting Active'}
+              </span>
+            </div>
+            {isMeetingRecording && (
+              <span style={{
+                fontSize: '0.6875rem',
+                fontWeight: 700,
+                color: '#ef4444',
+                fontFamily: 'monospace',
+                background: '#ffffff',
+                padding: '0.125rem 0.375rem',
+                borderRadius: '0.25rem',
+                border: '1px solid #fecaca',
+              }}>
+                {formatTime(activeRecordingTime)}
+              </span>
+            )}
+          </div>
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', flex: 1, overflowY: 'auto' }}>
-            {displayTiles.map((p, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ width: '1.75rem', height: '1.75rem', borderRadius: '50%', background: '#2f65f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
-                    {p.userName?.charAt(0).toUpperCase()}
+            {displayTiles.map((p, i) => {
+              const isRecHost = isRecording ? p.isLocal : (remoteRecording.isRecording && p.userName === remoteRecording.hostName);
+              return (
+                <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem', borderRadius: '0.5rem', background: '#f8fafc' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ width: '1.75rem', height: '1.75rem', borderRadius: '50%', background: '#2f65f6', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700 }}>
+                      {p.userName?.charAt(0).toUpperCase()}
+                    </div>
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>{p.userName} {p.isLocal ? '(You)' : ''}</span>
                   </div>
-                  <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#1e293b' }}>{p.userName} {p.isLocal ? '(You)' : ''}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                    {p.isLocal && isHost && (
+                      <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>Host</span>
+                    )}
+                    {isMeetingRecording && isRecHost && (
+                      <span style={{
+                        fontSize: '0.625rem',
+                        fontWeight: 700,
+                        background: '#ef4444',
+                        color: '#ffffff',
+                        padding: '0.125rem 0.375rem',
+                        borderRadius: '9999px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                      }}>
+                        <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#fff' }} />
+                        REC
+                      </span>
+                    )}
+                  </div>
                 </div>
-                {p.isLocal && isHost && (
-                  <span className="badge badge-info" style={{ fontSize: '0.625rem' }}>Host</span>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}

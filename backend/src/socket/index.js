@@ -5,6 +5,8 @@ const DirectMessage = require('../models/DirectMessage');
 
 // Track active rooms and participants
 const rooms = new Map();
+// Track active room recordings (roomId -> { isRecording: boolean, hostName: string, startedAt: number })
+const roomRecordings = new Map();
 
 const setupSocket = (io) => {
   // Socket.IO authentication middleware
@@ -59,12 +61,25 @@ const setupSocket = (io) => {
         .filter((p) => p.socketId !== socket.id);
       socket.emit('room-participants', participants);
 
+      // If room is actively being recorded, notify the newly joined participant
+      if (roomRecordings.has(roomId)) {
+        const recordingState = roomRecordings.get(roomId);
+        socket.emit('recording-status', {
+          isRecording: true,
+          hostName: recordingState.hostName,
+          startedAt: recordingState.startedAt,
+        });
+      }
+
       console.log(`👤 ${socket.userName} joined room ${roomId}`);
     });
 
     // ─── Host: End Meeting for Everyone ───────────────────────
     socket.on('host-end-meeting', ({ roomId }) => {
       console.log(`🛑 Host ${socket.userName} ended meeting in room ${roomId}`);
+      // Clean up room recording state
+      roomRecordings.delete(roomId);
+
       // Broadcast to ALL sockets in the room (including sender)
       io.to(roomId).emit('meeting-ended', {
         hostName: socket.userName,
@@ -179,12 +194,20 @@ const setupSocket = (io) => {
 
     // ─── Recording Signals ─────────────────────────────────────
     socket.on('recording-started', ({ roomId }) => {
+      const startedAt = Date.now();
+      roomRecordings.set(roomId, {
+        isRecording: true,
+        hostName: socket.userName,
+        startedAt,
+      });
       socket.to(roomId).emit('recording-started', {
         userName: socket.userName,
+        startedAt,
       });
     });
 
     socket.on('recording-stopped', ({ roomId }) => {
+      roomRecordings.delete(roomId);
       socket.to(roomId).emit('recording-stopped', {
         userName: socket.userName,
       });
@@ -207,6 +230,7 @@ const setupSocket = (io) => {
         // Clean up empty rooms
         if (rooms.get(socket.roomId).size === 0) {
           rooms.delete(socket.roomId);
+          roomRecordings.delete(socket.roomId);
         }
       }
     });
