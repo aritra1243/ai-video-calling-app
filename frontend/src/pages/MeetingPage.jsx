@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, memo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -13,6 +13,112 @@ import {
   HiPaperAirplane, HiChevronDown, HiDotsHorizontal,
 } from 'react-icons/hi';
 import toast from 'react-hot-toast';
+
+// Memoized Video Tile to prevent video blinking/re-rendering on chat typing or state changes
+const MeetingVideoTile = memo(({ tile, idx, isLocalVideoEnabled, isLocalAudioEnabled }) => {
+  const videoRef = useRef(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video && tile.stream) {
+      if (video.srcObject !== tile.stream) {
+        video.srcObject = tile.stream;
+      }
+    }
+  }, [tile.stream]);
+
+  const showFallbackAvatar = !tile.stream || (tile.isLocal && !isLocalVideoEnabled);
+
+  return (
+    <div
+      style={{
+        width: '100%',
+        height: '100%',
+        background: '#15181e',
+        borderRadius: '0.875rem',
+        overflow: 'hidden',
+        position: 'relative',
+        border: idx === 0 ? '3px solid #2f65f6' : '1px solid rgba(255, 255, 255, 0.08)',
+        boxShadow: idx === 0 ? '0 0 16px rgba(47, 101, 246, 0.4)' : 'none',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <video
+        ref={videoRef}
+        autoPlay
+        muted={tile.isLocal}
+        playsInline
+        style={{
+          width: '100%',
+          height: '100%',
+          objectFit: 'cover',
+          transform: tile.isLocal ? 'scaleX(-1)' : 'none',
+          display: showFallbackAvatar ? 'none' : 'block',
+        }}
+      />
+
+      {/* Fallback avatar if video disabled */}
+      {showFallbackAvatar && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: '#1a1e24',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#ffffff',
+          fontSize: '1.75rem',
+          fontWeight: 700,
+        }}>
+          <div style={{
+            width: '3.5rem',
+            height: '3.5rem',
+            borderRadius: '50%',
+            background: '#2f65f6',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            {tile.userName?.charAt(0).toUpperCase() || 'U'}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom-left Mute / Status pill icon on video tile */}
+      <div style={{
+        position: 'absolute',
+        bottom: '0.625rem',
+        left: '0.625rem',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.375rem',
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(6px)',
+        padding: '0.25rem 0.5rem',
+        borderRadius: '9999px',
+        color: '#ffffff',
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        zIndex: 10,
+      }}>
+        <div style={{
+          width: '1rem',
+          height: '1rem',
+          borderRadius: '50%',
+          background: (tile.isLocal && !isLocalAudioEnabled) ? '#ef4444' : 'rgba(255,255,255,0.2)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}>
+          <HiMicrophone size={10} color="#ffffff" />
+        </div>
+        <span>{tile.userName} {tile.isLocal ? '(You)' : ''}</span>
+      </div>
+    </div>
+  );
+});
 
 const MeetingPage = () => {
   const { roomId } = useParams();
@@ -628,97 +734,13 @@ const MeetingPage = () => {
               gap: '0.625rem',
             }}>
               {displayTiles.map((t, idx) => (
-                <div
+                <MeetingVideoTile
                   key={t.id}
-                  style={{
-                    width: '100%',
-                    height: '100%',
-                    background: '#15181e',
-                    borderRadius: '0.875rem',
-                    overflow: 'hidden',
-                    position: 'relative',
-                    border: idx === 0 ? '3px solid #2f65f6' : '1px solid rgba(255, 255, 255, 0.08)',
-                    boxShadow: idx === 0 ? '0 0 16px rgba(47, 101, 246, 0.4)' : 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <video
-                    ref={el => {
-                      if (el && t.stream) {
-                        el.srcObject = t.stream;
-                      }
-                    }}
-                    autoPlay
-                    muted={t.isLocal}
-                    playsInline
-                    style={{
-                      width: '100%',
-                      height: '100%',
-                      objectFit: 'cover',
-                      transform: t.isLocal ? 'scaleX(-1)' : 'none',
-                    }}
-                  />
-
-                  {/* Fallback avatar if video disabled */}
-                  {(!t.stream || (t.isLocal && !videoEnabled)) && (
-                    <div style={{
-                      position: 'absolute',
-                      inset: 0,
-                      background: '#1a1e24',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#ffffff',
-                      fontSize: '1.75rem',
-                      fontWeight: 700,
-                    }}>
-                      <div style={{
-                        width: '3.5rem',
-                        height: '3.5rem',
-                        borderRadius: '50%',
-                        background: '#2f65f6',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}>
-                        {t.userName?.charAt(0).toUpperCase()}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bottom-left Mute / Status pill icon on video tile */}
-                  <div style={{
-                    position: 'absolute',
-                    bottom: '0.625rem',
-                    left: '0.625rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.375rem',
-                    background: 'rgba(15, 23, 42, 0.75)',
-                    backdropFilter: 'blur(6px)',
-                    padding: '0.25rem 0.5rem',
-                    borderRadius: '9999px',
-                    color: '#ffffff',
-                    fontSize: '0.6875rem',
-                    fontWeight: 600,
-                    zIndex: 10,
-                  }}>
-                    <div style={{
-                      width: '1rem',
-                      height: '1rem',
-                      borderRadius: '50%',
-                      background: (t.isLocal && !audioEnabled) ? '#ef4444' : 'rgba(255,255,255,0.2)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}>
-                      <HiMicrophone size={10} color="#ffffff" />
-                    </div>
-                    <span>{t.userName} {t.isLocal ? '(You)' : ''}</span>
-                  </div>
-                </div>
+                  tile={t}
+                  idx={idx}
+                  isLocalVideoEnabled={videoEnabled}
+                  isLocalAudioEnabled={audioEnabled}
+                />
               ))}
             </div>
 
